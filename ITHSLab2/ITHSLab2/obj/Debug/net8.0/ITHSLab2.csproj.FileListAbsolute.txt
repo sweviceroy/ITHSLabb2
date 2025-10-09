@@ -1,0 +1,14 @@
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\bin\Debug\net8.0\ITHSLab2.exe
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\bin\Debug\net8.0\ITHSLab2.deps.json
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\bin\Debug\net8.0\ITHSLab2.runtimeconfig.json
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\bin\Debug\net8.0\ITHSLab2.dll
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\bin\Debug\net8.0\ITHSLab2.pdb
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.GeneratedMSBuildEditorConfig.editorconfig
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.AssemblyInfoInputs.cache
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.AssemblyInfo.cs
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.csproj.CoreCompileInputs.cache
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.dll
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\refint\ITHSLab2.dll
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.pdb
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.genruntimeconfig.cache
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ref\ITHSLab2.dll

@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "ITHSLab2/1.0.0": {
+        "runtime": {
+          "ITHSLab2.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ITHSLab2/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
