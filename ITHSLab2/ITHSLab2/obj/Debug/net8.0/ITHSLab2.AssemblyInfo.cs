@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ITHSLab2")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9b6b11e83986d5bc4880bd50ad0467a6b213c3fe")]
 [assembly: System.Reflection.AssemblyProductAttribute("ITHSLab2")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ITHSLab2")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

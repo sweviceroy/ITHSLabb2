@@ -12,3 +12,4 @@ C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\refint\ITHSL
 C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.pdb
 C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.genruntimeconfig.cache
 C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ref\ITHSLab2.dll
+C:\ITHS\Courses\CSharp\Labs\Lab2\ITHSLab2\ITHSLab2\obj\Debug\net8.0\ITHSLab2.sourcelink.json
