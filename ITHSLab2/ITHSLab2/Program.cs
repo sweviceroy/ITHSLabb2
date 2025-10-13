@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq.Expressions;
 // TODO: 
 // Add all the classes.                                                   [V]
 // Add cool intro ascii art picture                                       [V]
@@ -15,14 +16,15 @@ using System.IO;
 // Print the walls!                                                       [ ]
 
 // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ NAMESPACE - START █████████████ 1 ████
+
+// TODO: DESCRIPTION OF HOW ALL CLASSES FIT TOGETHER !
 namespace Labb2DungeonCrawler
 {
-    // TODO: DESCRIPTION OF HOW ALL CLASSES FIT TOGETHER !
 
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ CORE CLASSES      █████████████ 2 ████
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ CORE CLASSES      █████████████ 2 ████
+
+    // ████████████████████████████████████████████████████████████████████CORE CLASSES      █████████████ 2 ████
+    //  
   
-
     public class Dice
     {
     }
@@ -55,10 +57,6 @@ namespace Labb2DungeonCrawler
             }
         }
     }// end Level Element
-
-    public abstract class Enemy : LevelElement
-    {
-    }
 
     /// <summary>
     /// Wall tile. Blocks movement
@@ -120,32 +118,136 @@ namespace Labb2DungeonCrawler
         }
     }
 
-
+    // LEVEL DATA______________________________________________________________________________________-
+    // This is a mess. try to fix later
+    
+    /// <summary>
+    /// Class Leveldata.
+    /// Constructor takes a string fileName for the first level to load
+    /// </summary>
     public class LevelData
     {
+        public LevelData(string fileName)
+        {
+            try { this.Load(fileName); }
+
+            catch (FileNotFoundException e)
+            {
+                Console.WriteLine("You done GOOFED! The first level cant be found");
+                Console.WriteLine("\aThe game will now quit n shid");
+                Thread.Sleep(5000);
+                Environment.Exit(0);
+            }
+
+        }
+        public List<LevelElement> Elements { get; } = new();
+        public Player Player { get; private set; }
+        public (int Width, int Height) Size { get; private set; }
+
+        //loads the level, can be used later for other levels aswell.
+        public void Load(string filename)
+        {
+            // start by checking
+            if (!File.Exists(filename))
+                throw new FileNotFoundException("Level file not found", filename);
+
+            string[] lines = File.ReadAllLines(filename);
+            int height = lines.Length;
+            int width = 0;
+
+            for (int y = 0; y < lines.Length; y++)
+            {
+                string line = lines[y] ?? string.Empty;
+                if (line.Length > width) width = line.Length;
+
+                for (int x = 0; x < line.Length; x++)
+                {
+                    char ch = line[x];
+
+                    switch (ch)
+                    {
+                        case '#':
+                            Elements.Add(new Wall(x, y));
+                            break;
+
+                        case '@':
+                            Player = new Player(x, y); // Ninja as the player
+                            break;
+
+                        case 'r':
+                            Elements.Add(new Rat(x, y)); // Rat enemy
+                            break;
+
+                        case 's':
+                            Elements.Add(new Snake(x, y)); // Snake enemy
+                            break;
+
+                        default:
+                            // ignore floor/space/etc for now
+                            break;
+                    }
+                }
+            }
+
+            Size = (width, height);
+        }
     }
 
     public class GameState
     {
     }
 
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ Player and        █████████████ 3 ████
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ Enemies           █████████████ 3 ████
-
+    // ████████████████████████████████████████████████████████████████████Player and Enemies      █████████████ 3 ████
+   
+    // --- Minimal Player/Enemies using your Symbols (emojis) ---
     public class Player : LevelElement
     {
+        public Player(int x, int y)
+        {
+            Position = (x, y);
+            IsEmoji = true;
+            Symbol = Symbols.Ninja;      // 🥷
+            AnsiColorCode = null;        // emoji, no ANSI color
+        }
+    }
+
+    // enemy class
+    public abstract class Enemy : LevelElement
+    {
+        public string Name { get; set; } = "Enemy";
+        public int HP { get; set; }
+        public Dice AttackDice { get; set; }
+        public Dice DefenceDice { get; set; }
+
+        public abstract void Update(GameState state);
     }
 
     public class Rat : Enemy
     {
-    }
+        public Rat(int x, int y)
+        {
+            Position = (x, y);
+            IsEmoji = true;
+            Symbol = Symbols.Rat;        // 🐀
+            AnsiColorCode = null;
+        }
 
+        public override void Update(GameState state) { /* to be implemented later */ }
+    }
     public class Snake : Enemy
     {
-    }
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ UTILITY and       █████████████ 4 ████
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ COMBAT            █████████████ 4 ████
+        public Snake(int x, int y)
+        {
+            Position = (x, y);
+            IsEmoji = true;
+            Symbol = Symbols.Snake;      // 🐍
+            AnsiColorCode = null;
+        }
 
+        public override void Update(GameState state) { /* to be implemented later */ }
+    }
+    // ████████████████████████████████████████████████████████████████████UTILITY and COMBAT      █████████████ 4 ████
+    // this is the thing that will render everythign!
     public static class Renderer
     {
     }
@@ -167,10 +269,10 @@ namespace Labb2DungeonCrawler
         public const string Urn = "⚱";
         public const string Face = "🗿";        
         public const string Snake = "🐍";
-        public const string WallSymbol = "🧱";
+        public const string wallSymbol = "🧱";
+        public const string grass = "🌿";
+
     }
-
-
     /// <summary>
     /// Class used to get ANSI color codes and has predefined colors.
     /// Allows converting HEX RGB values (#RRGGBB) to ANSI 24-bit escape codes for extra colours. 
@@ -235,12 +337,12 @@ namespace Labb2DungeonCrawler
             return $"\x1b[38;2;{r};{g};{b}m";
         }
     }
-
+    // Combat class to deal with all combat... // nice-2-have let the creatures also fight themselvs if different classes and are in range. 
     public static class Combat
     {
     }
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ MAIN CLASS        █████████████ 5 ████
-    // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████                   █████████████ 5 ████
+    // ██████████████████████████████████████████████████████████████████████████████████████MAIN CLASS        █████████████ 5 ████
+    // 
 
     public static class Labb2DungeonCrawler
     {
@@ -249,12 +351,11 @@ namespace Labb2DungeonCrawler
         {
 
             InitiateConsole();
-            printSymbolsAndColoredWalls();
-
-
+            LevelData levelData = new LevelData("Assets/Level1.txt");
+            Console.WriteLine("TEST#");
         }
-        // test to print 
 
+        /*      TEST FUNCTION TO SEE IF I CAN PRINT SYMBOLS AND CUSTOM COLORS
         public static void printSymbolsAndColoredWalls()
         {
             Console.Clear();
@@ -310,10 +411,10 @@ namespace Labb2DungeonCrawler
             Console.WriteLine("\n\nTryck på valfri tangent för att fortsätta...");
             Console.ReadKey(true);
         }
-
-
         // THis is needed to setup the console and enable more colors
         // checkout : https://en.wikipedia.org/wiki/ANSI_escape_code for reference
+        */
+
         public static void InitiateConsole()
         {
             // === Basic window setup ===
@@ -332,11 +433,10 @@ namespace Labb2DungeonCrawler
             // === Enable UTF-8 output for emojis ===
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            // === Custom ANSI color test (example) ===
-            // You can use these later to draw colored walls, ground, etc.
-            Console.WriteLine("\x1b[38;2;100;100;100mThis is a dark gray wall test.\x1b[0m");
-            Console.WriteLine("\x1b[38;2;50;180;50mThis is green ground test.\x1b[0m");
-            Console.WriteLine("\x1b[38;2;160;0;0mThis is a dark red border test.\x1b[0m");
+           
+            // Console.WriteLine("\x1b[38;2;100;100;100mThis is a dark gray wall test.\x1b[0m");
+            // Console.WriteLine("\x1b[38;2;50;180;50mThis is green ground test.\x1b[0m");
+            // Console.WriteLine("\x1b[38;2;160;0;0mThis is a dark red border test.\x1b[0m");
         }
 
     }
