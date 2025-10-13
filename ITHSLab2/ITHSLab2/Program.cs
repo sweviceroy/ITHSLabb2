@@ -19,15 +19,13 @@ namespace Labb2DungeonCrawler
 {
     // TODO: DESCRIPTION OF HOW ALL CLASSES FIT TOGETHER !
 
-
     // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ CORE CLASSES      █████████████ 2 ████
     // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ CORE CLASSES      █████████████ 2 ████
-    
+  
 
     public class Dice
     {
     }
-
     /// <summary>
     /// Base class for all visible elements in the dungeon level.
     /// Contains position (X,Y), a visual symbol (emoji or ASCII), and ANSI color information.
@@ -58,14 +56,70 @@ namespace Labb2DungeonCrawler
         }
     }// end Level Element
 
-
     public abstract class Enemy : LevelElement
     {
     }
 
+    /// <summary>
+    /// Wall tile. Blocks movement
+    /// Uses two colors. One that is randomized and one that is if it is in FOW
+    /// </summary>
     public class Wall : LevelElement
     {
+        public bool IsDiscovered { get; set; } = false;
+
+        public string LiveAnsi { get; private set; } = "";  // varied per-wall gray (when in vision)
+        public string FogAnsi { get; private set; } = "";  // static dim gray (when out of vision but discovered)
+
+        private static readonly Random rng = new Random();
+
+        public Wall(int x, int y)
+        {
+            Position = (x, y);
+            IsEmoji = false;
+            Symbol = "▓";
+
+            // Fixed fog color (dimmer than mörkgrå)
+            FogAnsi = AnsiColors.FromHex("#2F2F2F");
+
+            // Initial varied live color
+            SetRandomColor();
+
+            // Default to fog color until renderer applies vision
+            AnsiColorCode = FogAnsi;
+        }
+
+        // Randomizar color with just small variance. This may also be used later if we gonna add some flickering lights or something.
+        public void SetRandomColor()
+        {
+            int baseR = 64, baseG = 64, baseB = 64;
+            int v = rng.Next(-10, 11);
+            int r = Math.Clamp(baseR + v, 0, 255);
+            int g = Math.Clamp(baseG + v, 0, 255);
+            int b = Math.Clamp(baseB + v, 0, 255);
+            LiveAnsi = $"\x1b[38;2;{r};{g};{b}m";
+        }
+
+        /// <summary>
+        /// Marks walls as discovered the first time they enter vision to always bee seen.
+        /// Call this each frame for this wall: if currently in vision, use LiveAnsi;
+        /// if only discovered, use FogAnsi; if not discovered and not in vision, leave hidden.
+        /// </summary>
+        public void ApplyVision(bool inVisionNow)
+        {
+            if (inVisionNow)
+            {
+                IsDiscovered = true;
+                AnsiColorCode = LiveAnsi;
+            }
+            else if (IsDiscovered)
+            {
+                AnsiColorCode = FogAnsi;
+            }
+            // else: remain unseen (renderer should skip drawing)
+        }
     }
+
 
     public class LevelData
     {
@@ -74,6 +128,7 @@ namespace Labb2DungeonCrawler
     public class GameState
     {
     }
+
     // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ Player and        █████████████ 3 ████
     // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ Enemies           █████████████ 3 ████
 
@@ -101,17 +156,18 @@ namespace Labb2DungeonCrawler
         public const string Crown = "👑";
         public const string Rat = "🐀";
         public const string Ninja = "🥷";
-        public const string SpiderWeb = "🕸";   // was Web
+        public const string SpiderWeb = "🕸";  
         public const string Scroll = "📜";
         public const string Key = "🗝";
         public const string Sword = "🗡";
-        public const string HealthP = "🧪";     // was Potion
+        public const string HealthP = "🧪";     
         public const string Door = "🚪";
         public const string Bed = "🛏";
-        public const string Korg = "🧺";        // was Basket
+        public const string Korg = "🧺";        
         public const string Urn = "⚱";
-        public const string Face = "🗿";        // was Statue
+        public const string Face = "🗿";        
         public const string Snake = "🐍";
+        public const string WallSymbol = "🧱";
     }
 
 
