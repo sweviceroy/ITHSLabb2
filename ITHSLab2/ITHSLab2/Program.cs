@@ -2,18 +2,23 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq.Expressions;
+using System.Numerics;
+using System.Xml.Linq;
+
+
 // TODO: 
 // Add all the classes.                                                   [V]
 // Add cool intro ascii art picture                                       [V]
 // Setup the console window and enable emojis                             [V]
 // Print the intro ascii art pic the first thing in the main Method       [X]
 // Add Summary to all classes what they are supposed to do.               [-]
-// Create the Level Element class                                         [ ]
-// Create the LevelData                                                   [ ]
-// Load the level                                                         [ ]
-// Print the walls!                                                       [ ]
+// Create the Level Element class                                         [V]
+// Create the LevelData                                                   [V]
+// Load the level                                                         [V]
+// Print the walls!                                                       [V]
 
 // ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████ NAMESPACE - START █████████████ 1 ████
 
@@ -25,6 +30,7 @@ namespace Labb2DungeonCrawler
     // ████████████████████████████████████████████████████████████████████CORE CLASSES      █████████████ 2 ████
     //  
   
+ 
     public class Dice
     {
     }
@@ -202,12 +208,14 @@ namespace Labb2DungeonCrawler
     // --- Minimal Player/Enemies using your Symbols (emojis) ---
     public class Player : LevelElement
     {
+        public int visionRange { get; set; } 
         public Player(int x, int y)
         {
             Position = (x, y);
             IsEmoji = true;
             Symbol = Symbols.Ninja;      // 🥷
             AnsiColorCode = null;        // emoji, no ANSI color
+            visionRange = 5;
         }
     }
 
@@ -250,6 +258,41 @@ namespace Labb2DungeonCrawler
     // this is the thing that will render everythign!
     public static class Renderer
     {
+        public static void drawPlayer(Player p)
+        {
+            // Clear the previous position of the player by printing a space
+            Console.SetCursorPosition(p.Position.X, p.Position.Y);
+            Console.Write(" ");  // Erase previous player position (overwrite with a blank space)
+
+            // Now draw the player at the new position
+            p.Draw();
+        }
+
+        public static void drawVision(LevelData lD)
+        {
+            foreach (LevelElement lE in lD.Elements)
+            {
+                if (withinRange(lD.Player.Position.X, lD.Player.Position.Y, lE.Position.X, lE.Position.Y, lD.Player))
+                {
+                    if (lE is Wall)
+                    {
+                        Wall _w = (Wall)lE;
+                        _w.ApplyVision(true);
+                    }
+                    lE.Draw();
+                }
+            }
+        }
+
+        public static bool withinRange(int x1, int y1, int x2, int y2, Player p)
+        {
+            Vector2 pos1 = new Vector2(x1, y1);
+            Vector2 pos2 = new Vector2(x2, y2);
+
+            float distance = Vector2.Distance(pos1, pos2);
+
+            return distance <= p.visionRange;
+        }
     }
 
     // Some more symbols to use for epicness! 
@@ -341,6 +384,81 @@ namespace Labb2DungeonCrawler
     public static class Combat
     {
     }
+
+    public static class Movement
+    {
+        // The method that handles the player's movement input.
+        public static void GetMovement(LevelData levelData)
+        {
+            // Read the player's input
+            ConsoleKeyInfo keyInfo = Console.ReadKey(intercept: true);  // New feature: "intercept: true" gör så att text inte skrivs ut
+
+            int currentX = levelData.Player.Position.X;
+            int currentY = levelData.Player.Position.Y;
+
+            // Calculate the potential new position based on the key pressed
+            int newX = currentX;
+            int newY = currentY;
+
+            switch (keyInfo.Key)
+            {
+                case ConsoleKey.W:  // Move up (W)
+                case ConsoleKey.UpArrow:  // Up Arrow
+                    newY -= 1;
+                    break;
+
+                case ConsoleKey.S:  // Move down (S)
+                case ConsoleKey.DownArrow:  // Down Arrow
+                    newY += 1;
+                    break;
+
+                case ConsoleKey.A:  // Move left (A)
+                case ConsoleKey.LeftArrow:  // Left Arrow
+                    newX -= 1;
+                    break;
+
+                case ConsoleKey.D:  // Move right (D)
+                case ConsoleKey.RightArrow:  // Right Arrow
+                    newX += 1;
+                    break;
+
+                default:
+                    return;  // No movement for other keys
+            }
+
+            // Check if the new position is valid (i.e., within bounds and not a wall)
+            if (IsValidMove(levelData, newX, newY))
+            {
+                // Update the player's position if the move is valid
+                levelData.Player.Position = (newX, newY);
+               
+            }
+            else
+            {
+                // Optionally, provide feedback that the move is blocked (e.g., by a wall)
+            }
+        }
+
+        // Helper method to check if the player's new position is valid
+        private static bool IsValidMove(LevelData levelData, int x, int y)
+        {
+            // Check if the position is within the bounds of the level
+            if (x < 0 || x >= levelData.Size.Width || y < 0 || y >= levelData.Size.Height)
+                return false;
+
+            // Check if the position is occupied by a wall
+            foreach (var element in levelData.Elements)
+            {
+                if (element is Wall && element.Position.X == x && element.Position.Y == y)
+                {
+                    return false;  // Position is blocked by a wall
+                }
+            }
+
+            // If no wall is in the way and the position is within bounds, it's a valid move
+            return true;
+        }
+    }
     // ██████████████████████████████████████████████████████████████████████████████████████MAIN CLASS        █████████████ 5 ████
     // 
 
@@ -352,7 +470,15 @@ namespace Labb2DungeonCrawler
 
             InitiateConsole();
             LevelData levelData = new LevelData("Assets/Level1.txt");
-            Console.WriteLine("TEST#");
+            
+
+            while (true)
+            {
+                Movement.GetMovement(levelData);  // Get the player's movement
+                                                  // Render the level, check win/lose conditions, etc.
+                Renderer.drawVision(levelData);
+                Renderer.drawPlayer(levelData.Player);
+            }
         }
 
         /*      TEST FUNCTION TO SEE IF I CAN PRINT SYMBOLS AND CUSTOM COLORS
