@@ -3,8 +3,8 @@
   "WorkspaceRootPath": "C:\\ITHS\\Courses\\CSharp\\Labs\\Lab2\\ITHSLab2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{5E505839-31C6-4EB4-B5D7-1F078BA18CB1}|ITHSLab2\\ITHSLab2.csproj|c:\\iths\\courses\\csharp\\labs\\lab2\\ithslab2\\ithslab2\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5E505839-31C6-4EB4-B5D7-1F078BA18CB1}|ITHSLab2\\ITHSLab2.csproj|solutionrelative:ithslab2\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{5E505839-31C6-4EB4-B5D7-1F078BA18CB1}|ITHSLab2\\ITHSLab2.csproj|c:\\iths\\courses\\csharp\\labs\\lab2\\ithslab2\\ithslab2\\game.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5E505839-31C6-4EB4-B5D7-1F078BA18CB1}|ITHSLab2\\ITHSLab2.csproj|solutionrelative:ithslab2\\game.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -19,12 +19,12 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\ITHS\\Courses\\CSharp\\Labs\\Lab2\\ITHSLab2\\ITHSLab2\\Program.cs",
-              "RelativeDocumentMoniker": "ITHSLab2\\Program.cs",
-              "ToolTip": "C:\\ITHS\\Courses\\CSharp\\Labs\\Lab2\\ITHSLab2\\ITHSLab2\\Program.cs",
-              "RelativeToolTip": "ITHSLab2\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Title": "Game.cs",
+              "DocumentMoniker": "C:\\ITHS\\Courses\\CSharp\\Labs\\Lab2\\ITHSLab2\\ITHSLab2\\Game.cs",
+              "RelativeDocumentMoniker": "ITHSLab2\\Game.cs",
+              "ToolTip": "C:\\ITHS\\Courses\\CSharp\\Labs\\Lab2\\ITHSLab2\\ITHSLab2\\Game.cs",
+              "RelativeToolTip": "ITHSLab2\\Game.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAACkAAABDAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-10-01T12:32:10.052Z",
               "EditorCaption": ""
