@@ -1,5 +1,16 @@
-﻿//
-// ██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+﻿
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Numerics;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
+
+
+//
+// ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
 // DragonsDestructiveDeathDungeon 
 //
 //
@@ -9,15 +20,7 @@
 //  █ 03 – UTILITY CLASSES    → Dice
 //
 //  NOTE: Bara MVP nu! Se till att bli godkänd innan real-time projektet kan fortsätta.
-// ██████████████████████████████████████████████████████████████████████████████████████████████████████████ 00 █████████████
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
+// ██████████████████████████████████████████████████████████████████████████████████████████████████████████ 00 ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
 
 namespace DragonsDestructiveDeathDungeon
 {
@@ -417,18 +420,46 @@ namespace DragonsDestructiveDeathDungeon
 
 
     // ============================================================
-    // Enemy.cs – Abstract fiend-bas  (Step 10: Combat helpers)
-    // Summary: Gemensam logik för alla fiender + enkla combat-hjälpare.
+    // Enemy.cs – Abstract fiend-bas  (Shared dirs + RNG helpers)
+    // Summary: Gemensam logik för alla fiender + combat-hjälpare.
+    // Lägger till: delade riktningar och GetRandomDirection().
     // ============================================================
 
     public abstract class Enemy : LevelElement
     {
+        // ________________________ SHARED DIRECTION DATA _________________________________
+        /// <summary>
+        /// Kardinalriktningar (dx,dy) som alla fiender kan använda.
+        /// </summary>
+        protected static readonly (int dx, int dy)[] Directions = new (int, int)[]
+        {
+            (0, -1), // upp
+            (0,  1), // ner
+            (-1, 0), // vänster
+            (1,  0), // höger
+        };
+
+        /// <summary>
+        /// Delad RNG för fiende-beteenden (separat från Dice.rng).
+        /// </summary>
+        protected static readonly Random EnemyRng = new Random();
+
+        /// <summary>
+        /// Returnerar EN slumpad riktning från <see cref="Directions"/>.
+        /// </summary>
+        protected static (int dx, int dy) GetRandomDirection()
+        {
+            return Directions[EnemyRng.Next(Directions.Length)];
+        }
+
+        // ________________________ STATS / PROPERTIES ____________________________________
         public string Name { get; protected set; } = string.Empty;
         public int HP { get; protected set; }
         public Dice AttackDice { get; protected set; } = null!;
         public Dice DefenceDice { get; protected set; } = null!;
         public bool IsAlive => HP > 0;
 
+        // ________________________ CTOR _________________________________________________
         protected Enemy(int x, int y, char glyph)
             : base(x, y, glyph)
         { }
@@ -454,19 +485,19 @@ namespace DragonsDestructiveDeathDungeon
             return HP == 0;
         }
 
+        // ________________________ ABSTRACTS _____________________________________________
         public abstract void Update(LevelData level, Player player);
         public abstract override void Draw();
     }
 
-
     // ============================================================
-    // Rat.cs – The rodent of destruction and doom  (Step 9: AI)
-    // Summary: Slumpar en riktning och försöker gå 1 steg. Försöker upp till 4 håll.
+    // Rat.cs – The rodent of destruction and doom  
+    // Step 9–10: AI + Enemy-initiated combat, using Enemy.GetRandomDirection()
+    // Summary: Försöker upp till 4 slumpade riktningar. Om target = spelaren:
+    //           enemy attackerar först (counter 1x), står sedan kvar.
     // ============================================================
     public sealed class Rat : Enemy
     {
-        private static readonly Random rng = new Random();
-
         public Rat(int x, int y)
             : base(x, y, 'r')
         {
@@ -478,47 +509,63 @@ namespace DragonsDestructiveDeathDungeon
 
         // ________________________ METHODS _______________________________________________
         /// <summary>
-        /// Step 9 – Enkel AI:
-        ///  1) Slumpar ordningen på fyra kardinalriktningar.
-        ///  2) Testar varje riktning: om rutan inte är blockerad → flytta dit och avsluta.
-        ///  3) Om alla fyra är blockerade → stå still.
+        /// AI:
+        ///  1) Upp till 4 försök: hämta slumpad riktning via GetRandomDirection().
+        ///  2) Om target = spelarrutan → ENEMY ATTACK FÖRST (counter 1x) och STÅ KVAR.
+        ///  3) Annars: om rutan är passabel → gå dit och avsluta turnen.
+        ///  4) Om alla försök misslyckas → stå still.
         /// </summary>
         public override void Update(LevelData level, Player player)
         {
-            // Kandidatriktningar (dx,dy)
-            (int dx, int dy)[] dirs = new (int, int)[]
+            for (int tries = 0; tries < 4; tries++)
             {
-                (0, -1), // upp
-                (0,  1), // ner
-                (-1, 0), // vänster
-                (1,  0), // höger
-            };
+                var dir = GetRandomDirection();
+                int tx = X + dir.dx;
+                int ty = Y + dir.dy;
 
-            // Fisher–Yates shuffle för att randomisera ordningen varje tur
-            for (int i = dirs.Length - 1; i > 0; i--)
-            {
-                int j = rng.Next(i + 1);
-                var tmp = dirs[i];
-                dirs[i] = dirs[j];
-                dirs[j] = tmp;
-            }
+                // 1) Om target är spelarrutan → strid (enemy attackerar först), sedan STÅ KVAR
+                if (tx == player.X && ty == player.Y)
+                {
+                    // Enemy attacks first
+                    int a1 = RollAttack();
+                    int d1 = player.DefenceDice.Throw();
+                    int dmgToPlayer = Math.Max(0, a1 - d1);
+                    player.TakeDamage(dmgToPlayer);
 
-            // Försök gå i första passabla riktningen
-            for (int i = 0; i < dirs.Length; i++)
-            {
-                int tx = X + dirs[i].dx;
-                int ty = Y + dirs[i].dy;
+                    if (!player.IsAlive)
+                    {
+                        Console.Clear();
+                        Console.WriteLine("You were slain by a rat! 🐀");
+                        Console.WriteLine("Press any key to exit...");
+                        Console.ReadKey(true);
+                        Environment.Exit(0);
+                    }
 
-                // Out-of-bounds räknas som blockerad via helpern
+                    // Single counterattack
+                    int a2 = player.AttackDice.Throw();
+                    int d2 = RollDefence();
+                    int dmgToEnemy = Math.Max(0, a2 - d2);
+                    bool ratDied = TakeDamage(dmgToEnemy);
+                    if (ratDied)
+                    {
+                        level.RemoveEnemy(this);
+                    }
+
+                    return; // Turnen klar; ingen förflyttning in i spelarrutan.
+                }
+
+                // 2) Vanlig förflyttning om rutan är passabel
                 if (!level.IsBlockedByWallOrEnemy(tx, ty))
                 {
                     X = tx;
                     Y = ty;
-                    return; // gjort för denna turn
+                    return; // Turnen klar
                 }
+
+                // Annars: prova en ny slumpad riktning (upp till 4 försök)
             }
 
-            // Alla håll blockerade → gör inget denna turn
+            // 3) Alla försök misslyckades → stå still denna turn
         }
 
         public override void Draw()
@@ -526,6 +573,7 @@ namespace DragonsDestructiveDeathDungeon
             // Renderer ritar senare.
         }
     }
+
 
     // ============================================================
     // Snek.cs – (Step 9: AI – flee logic)
@@ -546,45 +594,64 @@ namespace DragonsDestructiveDeathDungeon
         }
 
         // ________________________ METHODS _______________________________________________
-        /// <summary>
-        /// Step 9 – Enkel "flee" AI:
-        ///  - Räkna avstånd^2 till spelaren. Om > 4 (dvs avstånd > 2) → gör inget.
-        ///  - Annars: testa de fyra kardinalriktningarna och välj den passabla ruta
-        ///    som ger STÖRST avstånd^2 till spelaren. Om alla blockerade → stå still.
-        /// </summary>
         public override void Update(LevelData level, Player player)
         {
-            // Avstånd^2 (vi skippar Math.Sqrt för enkelhet och prestanda)
+            // 1) Enemy-initiated combat guard: om ett av de fyra stegen är in i spelaren
+            for (int i = 0; i < Directions.Length; i++)
+            {
+                int tx = X + Directions[i].dx;
+                int ty = Y + Directions[i].dy;
+
+                if (tx == player.X && ty == player.Y)
+                {
+                    // Enemy attacks first
+                    int a1 = RollAttack();
+                    int d1 = player.DefenceDice.Throw();
+                    int dmgToPlayer = Math.Max(0, a1 - d1);
+                    player.TakeDamage(dmgToPlayer);
+
+                    if (!player.IsAlive)
+                    {
+                        Console.Clear();
+                        Console.WriteLine("You were bitten by a snek... and died! 🐍");
+                        Console.WriteLine("Press any key to exit...");
+                        Console.ReadKey(true);
+                        Environment.Exit(0);
+                    }
+
+                    // Single counterattack
+                    int a2 = player.AttackDice.Throw();
+                    int d2 = RollDefence();
+                    int dmgToEnemy = Math.Max(0, a2 - d2);
+                    bool snekDied = TakeDamage(dmgToEnemy);
+                    if (snekDied)
+                    {
+                        level.RemoveEnemy(this);
+                    }
+                    return; // Snek går inte in i rutan även om spelaren överlevde
+                }
+            }
+
+            // 2) Flee-AI: om spelaren är långt bort (>2) → stå still
             int dx0 = X - player.X;
             int dy0 = Y - player.Y;
             int dist2 = dx0 * dx0 + dy0 * dy0;
-
-            // Om spelaren är längre bort än 2 rutor → stå still
             if (dist2 > 4)
             {
                 return;
             }
 
-            // Kandidatriktningar (dx,dy)
-            (int dx, int dy)[] dirs = new (int, int)[]
-            {
-                (0, -1), // upp
-                (0,  1), // ner
-                (-1, 0), // vänster
-                (1,  0), // höger
-            };
-
+            // 3) Annars: välj passabel riktning som maximerar avståndet
             int bestTx = X;
             int bestTy = Y;
-            int bestDist2 = dist2; // vi vill hitta något STÖRRE än nuvarande
+            int bestDist2 = dist2;
             bool foundBetter = false;
 
-            for (int i = 0; i < dirs.Length; i++)
+            for (int i = 0; i < Directions.Length; i++)
             {
-                int tx = X + dirs[i].dx;
-                int ty = Y + dirs[i].dy;
+                int tx = X + Directions[i].dx;
+                int ty = Y + Directions[i].dy;
 
-                // Måste vara passabelt (ingen vägg/levande fiende och inom bounds)
                 if (level.IsBlockedByWallOrEnemy(tx, ty))
                 {
                     continue;
@@ -592,12 +659,11 @@ namespace DragonsDestructiveDeathDungeon
 
                 int ddx = tx - player.X;
                 int ddy = ty - player.Y;
-                int candidateDist2 = ddx * ddx + ddy * ddy;
+                int cand = ddx * ddx + ddy * ddy;
 
-                // Välj den riktning som maximerar avståndet
-                if (candidateDist2 > bestDist2)
+                if (cand > bestDist2)
                 {
-                    bestDist2 = candidateDist2;
+                    bestDist2 = cand;
                     bestTx = tx;
                     bestTy = ty;
                     foundBetter = true;
@@ -616,8 +682,8 @@ namespace DragonsDestructiveDeathDungeon
         {
             // Renderer tar hand om utskriften senare.
         }
+    }
 
-    } // END CLASS Snek __________________________________________________________________ END Snek
 
 
     // ============================================================
