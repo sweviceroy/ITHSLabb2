@@ -12,16 +12,20 @@ namespace DragonsDestructiveDeathDungeon
     internal class Program
     {
         // TODOs:
-        // [ ] Print header och liten helptext
-        // [ ] Vänta på knapp och avsluta clean
+        // [V] Print header och liten helptext
+        // [V] Vänta på knapp och avsluta clean
         // [ ] (Senare) starta Game-loop
         static void Main(string[] args)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
-            Console.Title = "Dragons Destructive Death Dungeon – Lab 2 MVP";
-            Console.WriteLine("=== Dragons Destructive Death Dungeon – Lab 2 (MVP) ===");
-            Console.WriteLine("Projekt scaffold klart. Nästa steg: Dice!");
-            Console.WriteLine("Tryck valfri tangent för att avsluta…");
+            Console.WriteLine("Test av tärning: ");
+
+            var testDice = new Dice(2, 6, 2);
+            for (int i = 0; i < 5; i++)
+            {
+            Console.WriteLine($"Roll {i + 1}: {testDice.Throw()}  ({testDice})");
+            }
+                
             Console.ReadKey(true);
         }
     }
@@ -103,16 +107,61 @@ namespace DragonsDestructiveDeathDungeon
 
     // ============================================================
     // Dice.cs – 
-    // Summary: Representerar NdS±M tärningskonfigurationer, 
+    // Summary: Representerar x(Dice)+ y tärningskonfigurationer, 
     // t.ex. "2d6+2". Används för attack/defence rolls.
     // ============================================================
+
+    /// <summary>
+    /// Dice hanterar tärningskast som "2d6+2".
+    /// Använd Throw() för att rulla, och ToString() för att visa config.
+    /// </summary>
     public sealed class Dice
     {
-        // TODOs:
-        // [ ] Fields: numberOfDice, sidesPerDice, modifier
-        // [ ] Implement Throw() (steg 2)
-        // [ ] ToString() returnerar t.ex. "2d6+2"
-    }
+        // ________________________ FIELDS ________________________________________________
+        private static readonly Random rng = new Random(); // shared random generator
+
+        // ________________________ PROPERTIES ____________________________________________
+        public int NumberOfDice { get; }
+        public int SidesPerDice { get; }
+        public int Modifier { get; }
+
+        // ________________________ CONSTRUCTOR ___________________________________________
+        public Dice(int numberOfDice, int sidesPerDice, int modifier)
+        {
+            NumberOfDice = numberOfDice;
+            SidesPerDice = sidesPerDice;
+            Modifier = modifier;
+        }
+
+        // ________________________ METHODS _______________________________________________
+        /// <summary>
+        /// Rullar tärningarna och returnerar totalpoängen.
+        /// </summary>
+        public int Throw()
+        {
+            int sum = 0;
+
+            for (int i = 0; i < NumberOfDice; i++)
+            {
+                // rollar 1 till SidesPerDice (inklusive)
+                sum += rng.Next(1, SidesPerDice + 1);
+            }
+
+            sum += Modifier;
+            return sum;
+        }
+
+        /// <summary>
+        /// Returnerar en sträng som beskriver tärningen, t.ex. "2d6+2".
+        /// </summary>
+        public override string ToString()
+        {
+            string sign = Modifier >= 0 ? "+" : "-";
+            int absMod = Math.Abs(Modifier);
+            return $"{NumberOfDice}d{SidesPerDice}{sign}{absMod}";
+        }
+
+    } // END CLASS Dice ________________________________________________________________ END Dice
 
     // ============================================================
     // LevelData.cs – Håller banans data
@@ -122,7 +171,7 @@ namespace DragonsDestructiveDeathDungeon
     public sealed class LevelData
     {
         // TODOs:
-        // [ ] Private List<LevelElement> elements + read-only getter
+        // [ ] Private List<LevelElement> elements + read-only getterd
         // [ ] Load(filename) parser (steg 5)
         // [ ] Helpers: InBounds(), IsBlocked(), GetAt(), Enemies-lista
     }
