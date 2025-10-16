@@ -34,49 +34,179 @@ namespace DragonsDestructiveDeathDungeon
     // LevelElement.cs – Abstract base class
     // Summary: Basklass för allt på kartan. Håller X/Y + glyph. ritas med Draw().
     // ============================================================
+    /// <summary>
+    /// Basklass för alla level-objekt (väggar, spelare, fiender).
+    /// Innehåller gemensam data: position (X,Y) och tecknet (Glyph) som ritas.
+    /// </summary>
     public abstract class LevelElement
     {
-        // TODOs:
-        // [ ] Props: X, Y, Glyph
-        // [ ] Abstrakt Draw() metod (Renderer gör jobbet senare)
-        // [ ] (Kanske) helper SetPos()
-    }
+        // ________________________ PROPERTIES ____________________________________________
+        /// <summary> X-position i rutnätet (kolumn). </summary>
+        public int X { get; protected set; }
+
+        /// <summary> Y-position i rutnätet (rad). </summary>
+        public int Y { get; protected set; }
+
+        /// <summary> Tecknet som representerar elementet i konsolen. </summary>
+        public char Glyph { get; protected set; }
+
+        // ________________________ CONSTRUCTOR ___________________________________________
+
+        // vi kan använda vadsomhelst som glyph, men kör P för player, # för wall, S för snake och R för rat
+        protected LevelElement(int x, int y, char glyph)
+        {
+            X = x;
+            Y = y;
+            Glyph = glyph;
+        }
+
+        // ________________________ METHODS _______________________________________________
+        /// <summary>
+        /// Ritar elementet. Själva utskriften sker centralt i Renderer senare,
+        /// men kontraktet finns här så alla element kan "be om" att ritas.
+        /// </summary>
+        public abstract void Draw();
+
+        /// <summary>
+        /// Flytta objektet till en ny koordinat. Minimal helper (no physics).
+        /// </summary>
+        protected void SetPos(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+
+    } // END CLASS LevelElement _________________________________________________________ END LevelElement
 
     // ============================================================
-    // Wall.cs 
-    // Summary: Vägg. Ärver LevelElement. Hårdkodad '#' för väggar
+    // Wall.cs – Bonk!
+    // Summary: Väggklass. Ärver LevelElement och blockerar allt.
+    // Hårdkodad glyph '#' och används för att bygga kartans väggar.
     // ============================================================
+
+    /// <summary>
+    /// Representerar en vägg i dungeonen.
+    /// Väggar är statiska och har alltid glyph '#'.
+    /// Ingen AI, ingen rörelse, bara BONK.
+    /// </summary>
     public sealed class Wall : LevelElement
     {
-        // TODOs:
-        // [ ] Konstruktor sätter glyph till '#'
-        // [ ] Draw() placeholder (Renderer hanterar rendering später)
-    }
+        // ________________________ CONSTRUCTOR ___________________________________________
+        public Wall(int x, int y)
+            : base(x, y, '#')
+        {
+
+        }
+
+        // ________________________ METHODS _______________________________________________
+        /// <summary>
+        /// Draw() – placeholder, den riktiga renderingen sker via Renderer senare.
+        /// </summary>
+        public override void Draw()
+        {
+            // Ingenting här än – Renderer tar hand om utskriften sen.
+        }
+
+    } // END CLASS Wall _________________________________________________________________ END Wall
+
+
+
+
     // ============================================================
     // Enemy.cs – Abstract fiend-bas
     // Summary: Gemensam logik för alla fiender. 
     // Har namn, HP och Dice för attack/defence. Update() kör varje turn för hur de skall röra sig
     // ============================================================
+
+    /// <summary>
+    /// Abstrakt fiendeklass som Rat och Snake ärver från.
+    /// Innehåller gemensamma stats och kontrakt för uppdatering varje turn.
+    /// </summary>
     public abstract class Enemy : LevelElement
     {
-        // TODOs:
-        // [ ] Props: Name, HP, AttackDice, DefenceDice
-        // [ ] Abstrakt Update(LevelData, Player)
-        // [ ] (Senare) IsAlive helper, TryStep() helper
-    }
+        // ________________________ PROPERTIES ____________________________________________
+        /// <summary> Visningsnamn, t.ex. "rat" eller "snake". </summary>
+        public string Name { get; protected set; } = string.Empty;
+
+        /// <summary> Hälsopoäng. När HP ≤ 0: dead.exe </summary>
+        public int HP { get; protected set; }
+
+        /// <summary> Tärningar för attack (t.ex. 1d6+3). </summary>
+        public Dice AttackDice { get; protected set; } = null!;
+
+        /// <summary> Tärningar för defence (t.ex. 1d6+1). </summary>
+        public Dice DefenceDice { get; protected set; } = null!;
+
+        /// <summary> True om fienden lever (HP &gt; 0). </summary>
+        public bool IsAlive => HP > 0;
+
+        // ________________________ CONSTRUCTOR ___________________________________________
+        protected Enemy(int x, int y, char glyph)
+            : base(x, y, glyph)
+        {
+            // Subklasser sätter Name/HP/Dice.
+        }
+
+        // ________________________ METHODS _______________________________________________
+        /// <summary>
+        /// AI-uppdatering för fienden. Körs en gång per turn.
+        /// Subklasser bestämmer rörelsebeteende.
+        /// </summary>
+        public abstract void Update(LevelData level, Player player);
+
+        /// <summary>
+        /// Ritkontrakt – låt subklasser bestämma hur de ritas (glyph finns redan).
+        /// Renderer kommer senare att hantera konsol-io centralt.
+        /// </summary>
+        public abstract override void Draw();
+
+        // (Senare) Helpers som TryStep(), TakeDamage(int dmg) etc. läggs här.
+
+    } // END CLASS Enemy ________________________________________________________________ END Enemy
+
+
 
     // ============================================================
-    // Rat.cs – The chaotic rodent
-    // Summary: Gör Kaos med er! Ett
+    // Rat.cs – The rodent of destruction and doom
+    // Summary: He nibble, he squeak, he´ll ruin your week. 
     // HP 10, Atk 1d6+3, Def 1d6+1.
     // ============================================================
+
+    /// <summary>
+    /// Rat – en liten fiende med slumpmässiga rörelser.
+    /// Kommer senare att röra sig 1 steg i random riktning varje turn.
+    /// </summary>
     public sealed class Rat : Enemy
     {
-        // TODOs:
-        // [ ] Init stats i konstruktorn
-        // [ ] Implementera Update(): slumpa riktning, gå ett steg (steg 9)
-        // [ ] (Senare) Squeak-ljud meme 🐀
-    }
+        // ________________________ CONSTRUCTOR ___________________________________________
+        public Rat(int x, int y)
+            : base(x, y, 'r')
+        {
+            Name = "rat";
+            HP = 10;
+            AttackDice = new Dice(1, 6, 3);
+            DefenceDice = new Dice(1, 6, 1);
+        }
+
+        // ________________________ METHODS _______________________________________________
+        /// <summary>
+        /// Update() – placeholder för AI (kommer i steg 9).
+        /// Just nu gör råttan nada.
+        /// </summary>
+        public override void Update(LevelData level, Player player)
+        {
+            // TODO: Slumpa en riktning och försök gå 1 steg (steg 9)
+        }
+
+        /// <summary>
+        /// Draw() – placeholder, Renderer ritar senare.
+        /// </summary>
+        public override void Draw()
+        {
+            // Nada här tills Renderer implementeras.
+        }
+
+    } // END CLASS Rat _________________________________________________________________ END Rat
 
     // ============================================================
     // Snake.cs – SNEK
