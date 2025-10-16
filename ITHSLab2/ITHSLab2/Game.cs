@@ -1,13 +1,24 @@
-﻿// ============================================================
+﻿// ██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
 // DragonsDestructiveDeathDungeon 
-// ============================================================
+//
+//
+//  SECTION INDEX:
+//  █ 01 – CORE SYSTEMS       → Program, LevelData, Renderer
+//  █ 02 – GAME ENTITIES      → LevelElement, Wall, Enemy, Rat, Snek, Player
+//  █ 03 – UTILITY CLASSES    → Dice
+//
+//  NOTE: Bara MVP nu! Se till att bli godkänd innan real-time projektet kan fortsätta.
+// ██████████████████████████████████████████████████████████████████████████████████████████████████████████ 00 █████████████
 
 using System;
 
 namespace DragonsDestructiveDeathDungeon
 {
+
+    // █████████████████████████████ CORE SYSTEMS ███████████████████████████████████████████████████████████ 01 █████████████
+
     // ============================================================================
-    // BARA MVP NU! Se till att bli godkänd innan real time projektet kan fortsätta
+    // Program.cs – Entry point
     // ============================================================================
     internal class Program
     {
@@ -23,275 +34,12 @@ namespace DragonsDestructiveDeathDungeon
             var testDice = new Dice(2, 6, 2);
             for (int i = 0; i < 5; i++)
             {
-            Console.WriteLine($"Roll {i + 1}: {testDice.Throw()}  ({testDice})");
+                Console.WriteLine($"Roll {i + 1}: {testDice.Throw()}  ({testDice})");
             }
-                
+
             Console.ReadKey(true);
         }
     }
-
-    // ============================================================
-    // LevelElement.cs – Abstract base class
-    // Summary: Basklass för allt på kartan. Håller X/Y + glyph. ritas med Draw().
-    // ============================================================
-    /// <summary>
-    /// Basklass för alla level-objekt (väggar, spelare, fiender).
-    /// Innehåller gemensam data: position (X,Y) och tecknet (Glyph) som ritas.
-    /// </summary>
-    public abstract class LevelElement
-    {
-        // ________________________ PROPERTIES ____________________________________________
-        /// <summary> X-position i rutnätet (kolumn). </summary>
-        public int X { get; protected set; }
-
-        /// <summary> Y-position i rutnätet (rad). </summary>
-        public int Y { get; protected set; }
-
-        /// <summary> Tecknet som representerar elementet i konsolen. </summary>
-        public char Glyph { get; protected set; }
-
-        // ________________________ CONSTRUCTOR ___________________________________________
-
-        // vi kan använda vadsomhelst som glyph, men kör P för player, # för wall, S för snake och R för rat
-        protected LevelElement(int x, int y, char glyph)
-        {
-            X = x;
-            Y = y;
-            Glyph = glyph;
-        }
-
-        // ________________________ METHODS _______________________________________________
-        /// <summary>
-        /// Ritar elementet. Själva utskriften sker centralt i Renderer senare,
-        /// men kontraktet finns här så alla element kan "be om" att ritas.
-        /// </summary>
-        public abstract void Draw();
-
-        /// <summary>
-        /// Flytta objektet till en ny koordinat. Minimal helper (no physics).
-        /// </summary>
-        protected void SetPos(int x, int y)
-        {
-            X = x;
-            Y = y;
-        }
-
-    } // END CLASS LevelElement _________________________________________________________ END LevelElement
-
-    // ============================================================
-    // Wall.cs – Bonk!
-    // Summary: Väggklass. Ärver LevelElement och blockerar allt.
-    // Hårdkodad glyph '#' och används för att bygga kartans väggar.
-    // ============================================================
-
-    /// <summary>
-    /// Representerar en vägg i dungeonen.
-    /// Väggar är statiska och har alltid glyph '#'.
-    /// Ingen AI, ingen rörelse, bara BONK.
-    /// </summary>
-    public sealed class Wall : LevelElement
-    {
-        // ________________________ CONSTRUCTOR ___________________________________________
-        public Wall(int x, int y)
-            : base(x, y, '#')
-        {
-
-        }
-
-        // ________________________ METHODS _______________________________________________
-        /// <summary>
-        /// Draw() – placeholder, den riktiga renderingen sker via Renderer senare.
-        /// </summary>
-        public override void Draw()
-        {
-            // Ingenting här än – Renderer tar hand om utskriften sen.
-        }
-
-    } // END CLASS Wall _________________________________________________________________ END Wall
-
-
-
-
-    // ============================================================
-    // Enemy.cs – Abstract fiend-bas
-    // Summary: Gemensam logik för alla fiender. 
-    // Har namn, HP och Dice för attack/defence. Update() kör varje turn för hur de skall röra sig
-    // ============================================================
-
-    /// <summary>
-    /// Abstrakt fiendeklass som Rat och Snake ärver från.
-    /// Innehåller gemensamma stats och kontrakt för uppdatering varje turn.
-    /// </summary>
-    public abstract class Enemy : LevelElement
-    {
-        // ________________________ PROPERTIES ____________________________________________
-        /// <summary> Visningsnamn, t.ex. "rat" eller "snake". </summary>
-        public string Name { get; protected set; } = string.Empty;
-
-        /// <summary> Hälsopoäng. När HP ≤ 0: dead.exe </summary>
-        public int HP { get; protected set; }
-
-        /// <summary> Tärningar för attack (t.ex. 1d6+3). </summary>
-        public Dice AttackDice { get; protected set; } = null!;
-
-        /// <summary> Tärningar för defence (t.ex. 1d6+1). </summary>
-        public Dice DefenceDice { get; protected set; } = null!;
-
-        /// <summary> True om fienden lever (HP &gt; 0). </summary>
-        public bool IsAlive => HP > 0;
-
-        // ________________________ CONSTRUCTOR ___________________________________________
-        protected Enemy(int x, int y, char glyph)
-            : base(x, y, glyph)
-        {
-            // Subklasser sätter Name/HP/Dice.
-        }
-
-        // ________________________ METHODS _______________________________________________
-        /// <summary>
-        /// AI-uppdatering för fienden. Körs en gång per turn.
-        /// Subklasser bestämmer rörelsebeteende.
-        /// </summary>
-        public abstract void Update(LevelData level, Player player);
-
-        /// <summary>
-        /// Ritkontrakt – låt subklasser bestämma hur de ritas (glyph finns redan).
-        /// Renderer kommer senare att hantera konsol-io centralt.
-        /// </summary>
-        public abstract override void Draw();
-
-        // (Senare) Helpers som TryStep(), TakeDamage(int dmg) etc. läggs här.
-
-    } // END CLASS Enemy ________________________________________________________________ END Enemy
-
-
-
-    // ============================================================
-    // Rat.cs – The rodent of destruction and doom
-    // Summary: He nibble, he squeak, he´ll ruin your week. 
-    // HP 10, Atk 1d6+3, Def 1d6+1.
-    // ============================================================
-
-    /// <summary>
-    /// Rat – en liten fiende med slumpmässiga rörelser.
-    /// Kommer senare att röra sig 1 steg i random riktning varje turn.
-    /// </summary>
-    public sealed class Rat : Enemy
-    {
-        // ________________________ CONSTRUCTOR ___________________________________________
-        public Rat(int x, int y)
-            : base(x, y, 'r')
-        {
-            Name = "rat";
-            HP = 10;
-            AttackDice = new Dice(1, 6, 3);
-            DefenceDice = new Dice(1, 6, 1);
-        }
-
-        // ________________________ METHODS _______________________________________________
-        /// <summary>
-        /// Update() – placeholder för AI (kommer i steg 9).
-        /// Just nu gör råttan nada.
-        /// </summary>
-        public override void Update(LevelData level, Player player)
-        {
-            // TODO: Slumpa en riktning och försök gå 1 steg (steg 9)
-        }
-
-        /// <summary>
-        /// Draw() – placeholder, Renderer ritar senare.
-        /// </summary>
-        public override void Draw()
-        {
-            // Nada här tills Renderer implementeras.
-        }
-
-    } // END CLASS Rat _________________________________________________________________ END Rat
-
-    // ============================================================
-    // Snake.cs – SNEK
-    // Summary: Snek where are you going?! SNEK STAHP! https://i.redd.it/eg1zq0wvk9r51.jpg
-    // Backar bort. HP 25, Atk 3d4+2, Def 1d8+5.
-    // ============================================================
-    public sealed class Snake : Enemy
-    {
-        // TODOs:
-        // [ ] Init stats i konstruktorn
-        // [ ] Implementera Update(): flee if ≤2 (steg 9)
-        // [ ] (Senare) Tie-break logik för rörelse
-    }
-
-    // ============================================================
-    // Player.cs – Main character
-    // Summary: Hjälten. 1 steg/turn WASD och PILAR för movement
-    // Krocka med väggar och fiender = combat!
-    // ============================================================
-    public sealed class Player : LevelElement
-    {
-        // TODOs:
-        // [ ] HP 100, AttackDice 2d6+2, DefenceDice 2d6+0
-        // [ ] ProposeMove(dx,dy) logik (steg 6)
-        // [ ] Attack() + TakeDamage() stubbar
-        // [ ] (Senare) XP och loot? lol nope, MVP only.
-    }
-
-    // ============================================================
-    // Dice.cs – 
-    // Summary: Representerar x(Dice)+ y tärningskonfigurationer, 
-    // t.ex. "2d6+2". Används för attack/defence rolls.
-    // ============================================================
-
-    /// <summary>
-    /// Dice hanterar tärningskast som "2d6+2".
-    /// Använd Throw() för att rulla, och ToString() för att visa config.
-    /// </summary>
-    public sealed class Dice
-    {
-        // ________________________ FIELDS ________________________________________________
-        private static readonly Random rng = new Random(); // shared random generator
-
-        // ________________________ PROPERTIES ____________________________________________
-        public int NumberOfDice { get; }
-        public int SidesPerDice { get; }
-        public int Modifier { get; }
-
-        // ________________________ CONSTRUCTOR ___________________________________________
-        public Dice(int numberOfDice, int sidesPerDice, int modifier)
-        {
-            NumberOfDice = numberOfDice;
-            SidesPerDice = sidesPerDice;
-            Modifier = modifier;
-        }
-
-        // ________________________ METHODS _______________________________________________
-        /// <summary>
-        /// Rullar tärningarna och returnerar totalpoängen.
-        /// </summary>
-        public int Throw()
-        {
-            int sum = 0;
-
-            for (int i = 0; i < NumberOfDice; i++)
-            {
-                // rollar 1 till SidesPerDice (inklusive)
-                sum += rng.Next(1, SidesPerDice + 1);
-            }
-
-            sum += Modifier;
-            return sum;
-        }
-
-        /// <summary>
-        /// Returnerar en sträng som beskriver tärningen, t.ex. "2d6+2".
-        /// </summary>
-        public override string ToString()
-        {
-            string sign = Modifier >= 0 ? "+" : "-";
-            int absMod = Math.Abs(Modifier);
-            return $"{NumberOfDice}d{SidesPerDice}{sign}{absMod}";
-        }
-
-    } // END CLASS Dice ________________________________________________________________ END Dice
 
     // ============================================================
     // LevelData.cs – Håller banans data
@@ -301,7 +49,7 @@ namespace DragonsDestructiveDeathDungeon
     public sealed class LevelData
     {
         // TODOs:
-        // [ ] Private List<LevelElement> elements + read-only getterd
+        // [ ] Private List<LevelElement> elements + read-only getter
         // [ ] Load(filename) parser (steg 5)
         // [ ] Helpers: InBounds(), IsBlocked(), GetAt(), Enemies-lista
     }
@@ -318,4 +66,198 @@ namespace DragonsDestructiveDeathDungeon
         // [ ] (Senare) Fog-of-war + seenWalls-array
         // [ ] (Senare) färg + memes kanske 🤷‍♂️
     }
-}
+
+    // █████████████████████████████ GAME ENTITIES ██████████████████████████████████████████████████████████ 02 █████████████
+
+    // ============================================================
+    // LevelElement.cs – Abstract base class
+    // Summary: Basklass för allt på kartan. Håller X/Y + glyph. ritas med Draw().
+    // ============================================================
+    public abstract class LevelElement
+    {
+        public int X { get; protected set; }
+        public int Y { get; protected set; }
+        public char Glyph { get; protected set; }
+
+        protected LevelElement(int x, int y, char glyph)
+        {
+            X = x;
+            Y = y;
+            Glyph = glyph;
+        }
+
+        public abstract void Draw();
+
+        protected void SetPos(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+    }
+
+    // ============================================================
+    // Wall.cs – Bonk!
+    // Summary: Väggklass. Ärver LevelElement och blockerar allt.
+    // ============================================================
+    public sealed class Wall : LevelElement
+    {
+        public Wall(int x, int y)
+            : base(x, y, '#')
+        { }
+
+        public override void Draw()
+        {
+            // Renderer tar hand om utskriften sen.
+        }
+    }
+
+    // ============================================================
+    // Enemy.cs – Abstract fiend-bas
+    // Summary: Gemensam logik för alla fiender. 
+    // ============================================================
+    public abstract class Enemy : LevelElement
+    {
+        public string Name { get; protected set; } = string.Empty;
+        public int HP { get; protected set; }
+        public Dice AttackDice { get; protected set; } = null!;
+        public Dice DefenceDice { get; protected set; } = null!;
+        public bool IsAlive => HP > 0;
+
+        protected Enemy(int x, int y, char glyph)
+            : base(x, y, glyph)
+        { }
+
+        public abstract void Update(LevelData level, Player player);
+        public abstract override void Draw();
+    }
+
+    // ============================================================
+    // Rat.cs – The rodent of destruction and doom
+    // Summary: He nibble, he squeak, he’ll ruin your week. 
+    // ============================================================
+    public sealed class Rat : Enemy
+    {
+        public Rat(int x, int y)
+            : base(x, y, 'r')
+        {
+            Name = "rat";
+            HP = 10;
+            AttackDice = new Dice(1, 6, 3);
+            DefenceDice = new Dice(1, 6, 1);
+        }
+
+        public override void Update(LevelData level, Player player)
+        {
+            // TODO: Slumpa en riktning och försök gå 1 steg (steg 9)
+        }
+
+        public override void Draw()
+        {
+            // Renderer ritar senare.
+        }
+    }
+
+    // ============================================================
+    // Snek.cs –
+    // Summary: Snek where are you going?! SNEK STAHP! https://preview.redd.it/eg1zq0wvk9r51.jpg?width=640&crop=smart&auto=webp&s=43e25c1641086cce6f74e35b43c2fe03a85f9241
+    // Beter sig fegt: står still >2 tiles, annars backar bort.
+    // HP 25, Atk 3d4+2, Def 1d8+5.
+    // ============================================================
+
+    /// <summary>
+    /// Snek – försiktig fiende som backar från spelaren när han är nära.
+    /// AI implementeras senare (steg 9).
+    /// </summary>
+    public sealed class Snek : Enemy
+    {
+        // ________________________ CONSTRUCTOR ___________________________________________
+        public Snek(int x, int y)
+            : base(x, y, 's')
+        {
+            Name = "snek";
+            HP = 25;
+            AttackDice = new Dice(3, 4, 2);
+            DefenceDice = new Dice(1, 8, 5);
+        }
+
+        // ________________________ METHODS _______________________________________________
+        /// <summary>
+        /// Update() – placeholder för AI (kommer i steg 9):
+        /// Om dist > 2: stå still. Annars: försök ta ett steg bort från spelaren.
+        /// </summary>
+        public override void Update(LevelData level, Player player)
+        {
+            // TODO: Implementera flee-logic i steg 9
+        }
+
+        /// <summary>
+        /// Draw() – placeholder, Renderer ritar senare.
+        /// </summary>
+        public override void Draw()
+        {
+            // TODO: Renderer tar hand om utskriften
+        }
+
+    } // END CLASS Snek __________________________________________________________________ END Snek
+
+
+    // ============================================================
+    // Player.cs – Main character
+    // Summary: Hjälten. 1 steg/turn WASD och PILAR för movement
+    // ============================================================
+    public sealed class Player : LevelElement
+    {
+        public Player(int x, int y, char glyph) : base(x, y, glyph)
+        {
+        }
+
+        // TODOs:
+        // [ ] HP 100, AttackDice 2d6+2, DefenceDice 2d6+0
+        // [ ] ProposeMove(dx,dy) logik (steg 6)
+        // [ ] Attack() + TakeDamage() stubbar
+        public override void Draw()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+    // █████████████████████████████ UTILITY CLASSES ███████████████████████████████████████████████████████ 03 █████████████
+
+    // ============================================================
+    // Dice.cs – RNGesus take the wheel
+    // Summary: Representerar x(Dice)+ y tärningskonfigurationer, 
+    // t.ex. "2d6+2". Används för attack/defence rolls.
+    // ============================================================
+    public sealed class Dice
+    {
+        private static readonly Random rng = new Random();
+
+        public int NumberOfDice { get; }
+        public int SidesPerDice { get; }
+        public int Modifier { get; }
+
+        public Dice(int numberOfDice, int sidesPerDice, int modifier)
+        {
+            NumberOfDice = numberOfDice;
+            SidesPerDice = sidesPerDice;
+            Modifier = modifier;
+        }
+
+        public int Throw()
+        {
+            int sum = 0;
+            for (int i = 0; i < NumberOfDice; i++)
+                sum += rng.Next(1, SidesPerDice + 1);
+            return sum + Modifier;
+        }
+
+        public override string ToString()
+        {
+            string sign = Modifier >= 0 ? "+" : "-";
+            int absMod = Math.Abs(Modifier);
+            return $"{NumberOfDice}d{SidesPerDice}{sign}{absMod}";
+        }
+    }
+
+} // END NAMESPACE DragonsDestructiveDeathDungeon _________________________________ END
