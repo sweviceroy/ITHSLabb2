@@ -28,80 +28,58 @@ namespace DragonsDestructiveDeathDungeon
     // █████████████████████████████ CORE SYSTEMS ███████████████████████████████████████████████████████████ 01 █████████████
 
     // ============================================================
-    // Game.cs – Grundläggande game-loop (Step 10: Player combat)
-    // Summary: Entry point + huvudloop. Rörelse + strid när spelaren
-    // försöker gå in i en fienderuta (en enkel attack + counter).
+    // Game.cs – Grundläggande game-loop (Step 11: Strict turn order)
+    // Summary: Player-fas först, därefter Enemy-fas i stabil ordning.
+    // Snapshot-lista används för att undvika "collection modified" när fiender dör.
     // ============================================================
 
     public static class Game
     {
         // ________________________ ENTRY POINT __________________________________________
-        /// <summary>
-        /// Programstart: laddar level och kör spelet tills ESC trycks.
-        /// </summary>
         static void Main(string[] args)
         {
             Console.Title = "Dragons Destructive Death Dungeon";
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            // 🔹 Ladda banan
             string path = "Assets/Level1.txt";
             LevelData level = new LevelData(path);
-
-            // 🔹 Skapa spelaren vid startposition
             Player player = new Player(level.PlayerStart);
 
             bool running = true;
 
-            // ________________________ MAIN LOOP ________________________________________
+            // ________________________ MAIN LOOP (STRICT ORDER) __________________________
             while (running)
             {
                 Console.Clear();
 
-                // Rita kartan
+                // ----- Render pre-turn -------------------------------------------------
                 Draw(level, player);
 
-                // Instruktioner
                 Console.WriteLine();
                 Console.WriteLine("WASD / PILAR = move   |   ESC = quit");
 
-                // Vänta på tangenttryck
+                // ----- INPUT -----------------------------------------------------------
                 ConsoleKeyInfo key = Console.ReadKey(true);
+                int dx = 0, dy = 0;
 
-                int dx = 0;
-                int dy = 0;
-
-                // ________________________ INPUT ________________________________________
                 switch (key.Key)
                 {
                     case ConsoleKey.W:
-                    case ConsoleKey.UpArrow:
-                        {
-                            dy = -1; break;
-                        }
+                    case ConsoleKey.UpArrow: { dy = -1; break; }
                     case ConsoleKey.S:
-                    case ConsoleKey.DownArrow:
-                        {
-                            dy = 1; break;
-                        }
+                    case ConsoleKey.DownArrow: { dy = 1; break; }
                     case ConsoleKey.A:
-                    case ConsoleKey.LeftArrow:
-                        {
-                            dx = -1; break;
-                        }
+                    case ConsoleKey.LeftArrow: { dx = -1; break; }
                     case ConsoleKey.D:
-                    case ConsoleKey.RightArrow:
-                        {
-                            dx = 1; break;
-                        }
+                    case ConsoleKey.RightArrow: { dx = 1; break; }
                     case ConsoleKey.Escape:
                         {
                             running = false;
-                            continue; // hoppa ut ur loopen direkt
+                            continue; // lämna loopen
                         }
                 }
 
-                // ________________________ PLAYER MOVEMENT & COMBAT _____________________
+                // ====================== PHASE 1: PLAYER ================================
                 // Beräkna targetposition men flytta inte ännu
                 var target = player.GetTarget(dx, dy);
 
@@ -109,7 +87,9 @@ namespace DragonsDestructiveDeathDungeon
                 var targetElem = level.GetFirstAt(target.tx, target.ty);
                 if (targetElem is Enemy enemy && enemy.IsAlive)
                 {
+                    // Spelar-initiated combat (attack + ev. counter)
                     ResolvePlayerAttack(level, player, enemy, target.tx, target.ty);
+                    // OBS: movement in i rutan sker bara om fienden dog (hanteras i Resolve)
                 }
                 else
                 {
@@ -122,13 +102,41 @@ namespace DragonsDestructiveDeathDungeon
                     }
                 }
 
-                // ________________________ ENEMY UPDATE (AI) _____________________________
-                foreach (var e in level.GetEnemies())
+                // Tidig utgång om spelaren dog pga nån effekt (defensiv guard)
+                if (!player.IsAlive)
                 {
-                    e.Update(level, player);
+                    Console.Clear();
+                    Console.WriteLine("You died!");
+                    Console.WriteLine("Press any key to exit...");
+                    Console.ReadKey(true);
+                    Environment.Exit(0);
                 }
 
-                // (Senare: vision, logg, dödshantering m.m.)
+                // ====================== PHASE 2: ENEMIES (STABLE) ======================
+                // Snapshot av fiender som ska få agera denna turn – stabil ordning
+                var enemiesThisTurn = level.GetEnemies().ToList();
+
+                foreach (var e in enemiesThisTurn)
+                {
+                    // Fienden kan ha dött under player-fasen (t.ex. om du expanderar framtida effekter)
+                    if (!e.IsAlive) { continue; }
+
+                    // Fiendens egen Update (kan attackera spelaren eller flytta)
+                    e.Update(level, player);
+
+                    // Om spelaren dog under en fiendes tur – avsluta
+                    if (!player.IsAlive)
+                    {
+                        Console.Clear();
+                        Console.WriteLine($"You were slain by a {e.Name}!");
+                        Console.WriteLine("Press any key to exit...");
+                        Console.ReadKey(true);
+                        Environment.Exit(0);
+                    }
+                }
+
+                // (Valfritt senare: level.CompactDeadEnemies();)
+                // (Valfritt senare: logg/meddelanden per turn)
             }
 
             Console.Clear();
@@ -136,16 +144,9 @@ namespace DragonsDestructiveDeathDungeon
             Console.ReadKey(true);
         }
 
-        // ________________________ COMBAT RESOLUTION ____________________________________
-        /// <summary>
-        /// Spelarens attack mot fiende på target-rutan. En enkel växling:
-        ///  A slår D → skada=max(0, A-D).
-        ///  Om fienden lever → EN (1) counterattack.
-        ///  Dör fienden → ta bort och flytta in spelaren på rutan.
-        /// </summary>
+        // ________________________ PLAYER COMBAT ________________________________________
         private static void ResolvePlayerAttack(LevelData level, Player player, Enemy enemy, int tx, int ty)
         {
-            // --- Spelaren attackerar ---
             int a1 = player.AttackDice.Throw();
             int d1 = enemy.RollDefence();
             int dmgToEnemy = Math.Max(0, a1 - d1);
@@ -159,20 +160,14 @@ namespace DragonsDestructiveDeathDungeon
                 return;
             }
 
-            // --- Counterattack (EXAKT en gång) ---
+            // Counter 1x
             int a2 = enemy.RollAttack();
             int d2 = player.DefenceDice.Throw();
             int dmgToPlayer = Math.Max(0, a2 - d2);
             player.TakeDamage(dmgToPlayer);
-
-            // Om spelaren får 0 HP i framtiden: här kan vi lägga Game Over-logik.
-            // Nu: spelaren stannar om fienden överlevde.
         }
 
         // ________________________ RENDERING ____________________________________________
-        /// <summary>
-        /// Enkel rituppgift: skriver ut hela kartan + spelaren.
-        /// </summary>
         private static void Draw(LevelData level, Player player)
         {
             for (int y = 0; y < level.Size.height; y++)
@@ -199,6 +194,7 @@ namespace DragonsDestructiveDeathDungeon
         }
 
     } // END CLASS Game ____________________________________________________________ END Game
+
 
 
     // ============================================================
