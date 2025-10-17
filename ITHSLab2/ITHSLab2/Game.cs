@@ -1,15 +1,5 @@
-﻿// ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-// DragonsDestructiveDeathDungeon 
-//  
-//  IMPORTS first
-//  ________________________________________________________________
-//  SECTION INDEX:
-//  █ 01 – CORE SYSTEMS       Program, LevelData, Renderer
-//  █ 02 – GAME ENTITIES      LevelElement, Wall, Enemy, Rat, Snek, Player
-//  █ 03 – UTILITY CLASSES    Dice
-//
-//  NOTE: Bara MVP nu! Se till att bli godkänd innan real-time projektet kan fortsätta.
-// ██████████████████████████████████████████████████████████████████████████████████████████████████████████ 00 ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+﻿
+
 
 using System;                           // basic C# core 
 using System.Collections.Generic;       // List  – LevelData, Game, Enemies, Log system
@@ -19,232 +9,281 @@ using System.Numerics;                  // Vector2/3 etc. Could use for Unity li
 using System.Text;                      // Encoding (Console, Stringfunctionality – Game (Console.OutputEncoding)
 
 
+// ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+// DragonsDestructiveDeathDungeon 
+//  SECTION INDEX:
+//  █ 01 – CORE SYSTEMS       → Program, LevelData, Renderer
+//  █ 02 – GAME ENTITIES      → LevelElement, Wall, Enemy, Rat, Snek, Player
+//  █ 03 – UTILITY CLASSES    → Dice
+//
+//  NOTE: Bara MVP nu! Se till att bli godkänd innan real-time projektet kan fortsätta.
+// ██████████████████████████████████████████████████████████████████████████████████████████████████████████ 00 ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+
 namespace DragonsDestructiveDeathDungeon
 {
 
     // █████████████████████████████ CORE SYSTEMS ███████████████████████████████████████████████████████████ 01 █████████████
 
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS GAME ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+    // ============================================================
+    // Game.cs – Game-loop + combat log
+    // Summary: Entry point + strikt turn order + rendering via Renderer
+    //          Combat-log: visar tärningsslag (attack/defence) och skador.
+    // ============================================================
 
-    // ============================================================
-    // Game.cs - MAIN GAME LOOP
-    // ============================================================
-    // ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ CLASS START ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+    // ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ CLASS START ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
     public static class Game
     {
         //_____________ COMBAT LOG (senaste N rader) _______________________________________
-        private static List<string> _log = new List<string>();
-        private const int MaxLogLines = 4;
+        private static readonly List<string> _log = new List<string>();
+        private const int MaxLogLines = 5;
+
+        /// <summary> Lägg till en rad i combat-loggen (håller bara senaste N raderna). </summary>
         public static void Log(string message)
         {
             _log.Add(message);
-            if (_log.Count > MaxLogLines)
-            {
-                _log.RemoveAt(0); 
-            }
+            if (_log.Count > MaxLogLines) _log.RemoveAt(0);
         }
-        /// <summary> Renderer läser loggen via denna </summary>
+
+        /// <summary> Renderer läser loggen via denna (returnerar en kopia som array, enklare än IReadOnlyList). </summary>
         public static string[] GetLog()
         {
             return _log.ToArray();
         }
 
-        // ________________________ START POINT __________________________________________
+        // ________________________ ENTRY POINT __________________________________________
+        /// <summary>
+        /// Programstart: laddar level och kör spelet tills ESC trycks eller spelaren dör.
+        /// </summary>
         static void Main(string[] args)
         {
-            // setup console window
             Console.Title = "Dragons Destructive Death Dungeon";
             Console.OutputEncoding = Encoding.UTF8;
-            Console.CursorVisible = false; // göm blinkande cursor
+            Console.CursorVisible = false; // göm blinkande cursor under spel
 
-            // Load level Assets/Level1.txt           // put txt in Assets folder
+            // 🔹 Ladda banan
             string path = "Assets/Level1.txt";
             LevelData level = new LevelData(path);
 
-            // spaw player at startPos
+            // 🔹 Skapa spelaren vid startposition
             Player player = new Player(level.PlayerStart);
 
-            // lets start the show
-            bool gameRunning = true;
+            bool running = true;
 
-            // ________________________ MAIN LOOP __________________________
-            while (gameRunning)
+            // ________________________ MAIN LOOP (STRICT ORDER) __________________________
+            while (running)
             {
-                Console.Clear(); // this will make it blink. This is the whole reason why we should have used a screenbuffer =(
-                
-                // 1. DRAW
-                // 2. INPUT
-                // 3. Player Phase
-                // 4. Enemy Phase
+                Console.Clear();
 
-                // MOve to render section [V]
-                // ----- Render  -------------------------------------------------
+                // ----- Render pre-turn -------------------------------------------------
                 Renderer.Draw(level, player);
                 Renderer.DrawHud(level, player);
 
                 // ----- INPUT -----------------------------------------------------------
-                ConsoleKeyInfo key = Console.ReadKey(true);
-                int dx = 0, dy = 0;
-
-                switch (key.Key) {
-                    case ConsoleKey.W:
-                    case ConsoleKey.UpArrow: { dy = -1; break; }
-                    case ConsoleKey.S:
-                    case ConsoleKey.DownArrow: { dy = 1; break; }
-                    case ConsoleKey.A:
-                    case ConsoleKey.LeftArrow: { dx = -1; break; }
-                    case ConsoleKey.D:
-                    case ConsoleKey.RightArrow: { dx = 1; break; }
-                    case ConsoleKey.Escape: {
-                            gameRunning = false;
-                            continue; // lämna loopen till slut-sammanfattning
-                    }
+                var input = GetInput();
+                if (input.quit)
+                {
+                    running = false;
+                    continue; // lämna loopen till slut-sammanfattning
                 }
+                int dx = input.dx;
+                int dy = input.dy;
 
                 // ====================== PHASE 1: PLAYER ================================
-                var target = player.GetTarget(dx, dy);
+                // Beräkna targetposition men flytta inte ännu
+                var newGridLocation = player.moveDir(dx, dy);
 
-                var enemyAtNewCell = level.GetEnemyAt(target.tx, target.ty);
-                if (enemyAtNewCell != null && enemyAtNewCell.IsAlive)
+                // Finns det en fiende här?
+                var checkMoveForEnemy = level.GetEnemyAt(newGridLocation.tx, newGridLocation.ty);
+                if (checkMoveForEnemy != null && checkMoveForEnemy.IsAlive)
                 {
-                    ResolvePlayerAttack(level, player, enemyAtNewCell, target.tx, target.ty);
+                    // Spelar-initiated combat (attack + ev. counter)
+                    PlayerAttacks(level, player, checkMoveForEnemy, newGridLocation.tx, newGridLocation.ty);
+                    // OBS: movement in i rutan sker bara om fienden ripperoni
                 }
                 else
                 {
-                    if (!level.IsBlockedByWallOrEnemy(target.tx, target.ty))
+                    // Annars: vanlig rörelse om rutan inte är blockerad
+                    if (!level.isBlocked(newGridLocation.tx, newGridLocation.ty))
                     {
-                        player.X = target.tx;
-                        player.Y = target.ty;
+                        player.X = newGridLocation.tx;
+                        player.Y = newGridLocation.ty;
                     }
                 }
 
+                // Defensiv guard (om framtida effekter dödar spelaren i fas 1)
                 if (!player.IsAlive)
                 {
-                    ShowSummaryAndExit(level, player, "You died!");
+                    finishUpEverything(level, player, "YOU DIED ! (Dark souls theme starts playing)");
                 }
 
-                // ====================== PHASE 2: ENEMIES (STABLE) ======================
-                // replaced LINQ ToList() with stable snapshot helper for iteration
-                var enemiesThisTurn = GetEnemyTempList(level);
+                // ====================== PHASE 2: ENEMIES strike ======================
+                // Snapshot av fiender som ska få agera denna turn – stabil ordning
+                var enemiesThisTurn = tempEnemyList(level);
 
+                // FIX THIS FOR FATAL ERROR! 
                 foreach (var e in enemiesThisTurn)
                 {
+                    // Kan ha dött under player-fasen
                     if (!e.IsAlive) { continue; }
 
+                    // Fiendens egen Update (kan attackera spelaren eller flytta)
                     e.Update(level, player);
 
+                    // Om spelaren dog under en fiendes tur – avsluta snyggt
                     if (!player.IsAlive)
                     {
-                        ShowSummaryAndExit(level, player, $"You were slain by a {e.Name}!");
+                        finishUpEverything(level, player, $"You were slain by a {e.Name}!");
                     }
                 }
+                // (Valfritt senare: extra städning/telemetri här)
             }
 
             // Quit via ESC → visa sammanfattning
-            ShowSummaryAndExit(level, player, "You quit the dungeon.");
+            finishUpEverything(level, player, "You quit the dungeon.");
         }
 
-        //_____________ PLAYER COMBAT ________________________________________
-        private static void ResolvePlayerAttack(LevelData level, Player player, Enemy enemy, int tx, int ty)
+        //_____________ INPUT HANDLER _____________________________________
+        /// <summary>
+        /// Läser en tangent och returnerar (dx,dy) samt quit-flagga.
+        /// ESC (char 27) sätter quit=true.
+        /// </summary>
+        private static (int dx, int dy, bool quit) GetInput()
         {
+            // Half-block divider style kept minimal inside method
+            // Definiera de fyra riktningarna som tuples (lokala “konstanter”)
+            var dirUp = (dx: 0, dy: -1);
+            var dirDown = (dx: 0, dy: 1);
+            var dirLeft = (dx: -1, dy: 0);
+            var dirRight = (dx: 1, dy: 0);
+
+            char key = Console.ReadKey(true).KeyChar;
+            key = char.ToLower(key);
+
+            switch (key)
+            {
+                case 'w': return (dirUp.dx, dirUp.dy, false);
+                case 's': return (dirDown.dx, dirDown.dy, false);
+                case 'a': return (dirLeft.dx, dirLeft.dy, false);
+                case 'd': return (dirRight.dx, dirRight.dy, false);
+                case (char)27: // ESC
+                    return (0, 0, true);
+                default:
+                    return (0, 0, false);
+            }
+        }
+
+        // ________________________ PLAYER COMBAT ________________________________________
+        /// <summary>
+        /// Spelarens attack mot fiende på target-rutan.
+        /// A slår D → skada=max(0, A-D). Om fienden lever → EXAKT en counter.
+        /// Dör fienden → ta bort och flytta in spelaren på rutan.
+        /// </summary>
+        private static void PlayerAttacks(LevelData level, Player player, Enemy enemy, int tx, int ty)
+        {
+            //___________ Player → Enemy __________________________________________________
             int a1 = player.AttackDice.Throw();
             int d1 = enemy.RollDefence();
             int dmgToEnemy = Math.Max(0, a1 - d1);
 
-            Log($"You attack {enemy.Name}: ATT {a1} vs DEF {d1} → {dmgToEnemy} dmg");
+            Log($"Our brave hero attack the {enemy.Name}: attack vs defence roll = {dmgToEnemy} damage");
 
             bool enemyDied = enemy.TakeDamage(dmgToEnemy);
 
             if (enemyDied)
             {
-                Log($"You slay the {enemy.Name}!");
+                Log($"The {enemy.Name} got rekt! xaxaxaxa rr ))))))");
                 level.RemoveEnemy(enemy);
                 player.X = tx;
                 player.Y = ty;
                 return;
             }
 
+            //___________ Enemy counter → Player _________________________________________
             int a2 = enemy.RollAttack();
             int d2 = player.DefenceDice.Throw();
-            int dmgToPlayer = Math.Max(0, a2 - d2);
-
-            Log($"{enemy.Name} counterattacks: ATT {a2} vs your DEF {d2} → {dmgToPlayer} dmg");
-
+            int dmgToPlayer = a2 - d2;
+            Log($"{enemy.Name} strikes back: attack vs defence roll = {dmgToPlayer} damage");
             player.TakeDamage(dmgToPlayer);
         }
 
-        // needed to avoid fatal crashes with null references from dead enemies.
-        private static List<Enemy> GetEnemyTempList(LevelData level)
-        {
-            var _temp = new List<Enemy>();
-            foreach (var e in level.GetEnemies())
-            {
-                _temp.Add(e);
-            }
-            return _temp;
-        }
-
-        //_____________ NICE ENDING / SUMMARY __________________________________
+        // ________________________ NICE ENDING / SUMMARY __________________________________
+        /// <summary>
+        /// Enemies kan kalla denna för att avsluta spelet snyggt (hellre än Environment.Exit direkt).
+        /// </summary>
+        /// 
         public static void EndFromEnemy(LevelData level, Player player, string message)
         {
-            ShowSummaryAndExit(level, player, message);
+            finishUpEverything(level, player, message);
         }
 
-        private static void ShowSummaryAndExit(LevelData level, Player player, string message)
+
+        //  skriv ut sammanfattning med HP och antal dödade fiender.
+
+        private static void finishUpEverything(LevelData level, Player player, string message)
         {
             Console.Clear();
-            Console.CursorVisible = true;
+            Console.CursorVisible = true; // visa cursor igen innan exit
 
             Console.WriteLine(message);
             Console.WriteLine();
             Console.WriteLine($"HP: {player.HP}");
-            Console.WriteLine($"Enemies defeated: {level.EnemiesDefeated}");
+            Console.WriteLine($"Enemies wasted: {level.EnemiesDefeated}");
             Console.WriteLine();
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey(true);
             Environment.Exit(0);
         }
 
+        private static List<Enemy> tempEnemyList(LevelData level)
+        {
+            var snapshot = new List<Enemy>();
+            foreach (var e in level.getTempEnemies())
+            {
+                snapshot.Add(e);
+            }
+            return snapshot;
+        }
+
     } // END CLASS Game ____________________________________________________________ END Game
 
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS LEVELDATA ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 
     // ============================================================
     // LevelData.cs – Håller banans data (SPLIT: Walls + Enemies)
-    // Summary: Laddar Level1.txt och separerar statiska väggar från
-    //          dynamiska fiender. Behåller API-kompatibilitet med:
-    //          - GetFirstAt(x,y)
-    //          - IsBlockedByWallOrEnemy(x,y)
-    //          - GetEnemies()
-    //          - RemoveEnemy(...)
-    //          + SeenWalls, Size, PlayerStart, EnemiesDefeated
+    // Summary: Laddar Level1.txt och separerar  väggar från
+    //          fiender. 
     // ============================================================
-    // ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ CLASS START ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-    public sealed class LevelData
+
+    public class LevelData
     {
         //_____________ FIELDS ______________________________________________________________
-        /// <summary> Statiska väggar (ritas varje frame). </summary>
         public List<Wall> Walls = new List<Wall>();
-
-        /// <summary> Dynamiska fiender (uppdateras/ritas per tur). </summary>
         public List<Enemy> Enemies = new List<Enemy>();
 
-        /// <summary> Väggminne: true om väggen på [x,y] har varit synlig minst en gång. </summary>
         public bool[,] SeenWalls = new bool[1, 1];
-
-        /// <summary> Räknare för hur många fiender som dödats. </summary>
         public int EnemiesDefeated { get; private set; } = 0;
 
         //_____________ PROPERTIES __________________________________________________________
         /// <summary> Tuple för bredd/höjd (width, height). </summary>
         public (int width, int height) Size { get; private set; }
-
-        /// <summary> Spelarens startposition hittad via '@'. </summary>
         public (int x, int y) PlayerStart { get; private set; } = (0, 0);
 
         //_____________ CONSTRUCTORS ________________________________________________________
-        public LevelData() { }
-
+        public LevelData()
+        {
+            /*
+             var defaultMap = Path.Combine("Assets", "Level1.txt");
+             if (File.Exists(defaultMap))
+            {
+             GameLoader(defaultMap);
+             // Game.Log("[LevelData] Auto-loaded default map.");
+             }
+            else
+            {
+             // Game.Log("[LevelData] No default map found. Call Load(...) manually.");
+             throw FileDontEx........ whatever
+             }
+            */
+        }
         public LevelData(string filename)
         {
             Load(filename);
@@ -252,10 +291,9 @@ namespace DragonsDestructiveDeathDungeon
 
         //_____________ LOAD METHOD _________________________________________________________
         /// <summary>
-        /// Läser in en textfil (Level1.txt) och bygger listorna.
-        /// Tecken:
-        ///   '#' = Wall, 'r' = Rat, 's' = Snek, '@' = PlayerStart.
-        /// Initierar dessutom seenWalls med rätt storlek.
+        /// Läser in textfil (Level1.txt) och bygger listorna.
+        /// # = Wall, r = Rat, s = Snek, @ = PlayerStart.
+        /// Initiera seenWalls med samma storlek.
         /// </summary>
         public void Load(string filename)
         {
@@ -288,41 +326,42 @@ namespace DragonsDestructiveDeathDungeon
 
                 for (int x = 0; x < width; x++)
                 {
-                    char ch = (x < line.Length) ? line[x] : ' ';
+                    char ch = SafeCharAt(line, x);
 
                     switch (ch)
                     {
                         case '#':
-                            Walls.Add(new Wall(x, y));
-                            break;
-
+                            {
+                                Walls.Add(new Wall(x, y));
+                                break;
+                            }
                         case 'r':
-                            if (!EnemyExistsAt(x, y))
+                            {
                                 Enemies.Add(new Rat(x, y));
-                            break;
-
+                                break;
+                            }
                         case 's':
-                            if (!EnemyExistsAt(x, y))
+                            {
                                 Enemies.Add(new Snek(x, y));
-                            break;
-
+                                break;
+                            }
                         case '@':
-                            PlayerStart = (x, y);
-                            break;
-
+                            {
+                                PlayerStart = (x, y);
+                                break;
+                            }
                         default:
-                            // tom ruta
-                            break;
+                            {
+                                // tom ruta
+                                break;
+                            }
                     }
                 }
             }
+
         }
 
-        //_____________ HELPERS: BOUNDS & QUERIES __________________________________________
-        public bool InBounds(int x, int y)
-        {
-            return x >= 0 && y >= 0 && x < Size.width && y < Size.height;
-        }
+        //_______________________________________________________
 
         public Wall? GetWallAt(int x, int y)
         {
@@ -331,10 +370,18 @@ namespace DragonsDestructiveDeathDungeon
             return null;
         }
 
+        private static char SafeCharAt(string line, int x)
+        {
+            if (x < 0 || x >= line.Length)
+                return ' '; // tom ruta utanför kanten
+            return line[x];
+        }
+
+        // "public enemy" lol :D
         public Enemy? GetEnemyAt(int x, int y)
         {
             foreach (var e in Enemies)
-                if (e.IsAlive && e.X == x && e.Y == y) return e;
+                if ((e.IsAlive) && (e.X == x) && (e.Y == y)) return e;
             return null;
         }
 
@@ -350,11 +397,8 @@ namespace DragonsDestructiveDeathDungeon
         }
 
         //_____________ COLLISION / PASSABILITY _____________________________________________
-        public bool IsBlockedByWallOrEnemy(int x, int y)
+        public bool isBlocked(int x, int y)
         {
-            if (!InBounds(x, y))
-                return true;
-
             if (GetWallAt(x, y) != null)
                 return true;
 
@@ -364,11 +408,11 @@ namespace DragonsDestructiveDeathDungeon
             return false;
         }
 
-        //_____________ ENEMIES API (ENUM + REMOVE) ________________________________________
-        public IEnumerable<Enemy> GetEnemies()
+        //_____________ tempENEMIES  ________________________________________
+        public List<Enemy> getTempEnemies()
         {
-            foreach (var e in Enemies)
-                yield return e;
+            // Return a new copy so the original list can’t be changed from outside.
+            return new List<Enemy>(Enemies);
         }
 
         public void RemoveEnemy(Enemy enemy)
@@ -379,26 +423,12 @@ namespace DragonsDestructiveDeathDungeon
             }
         }
 
-        //_____________ HELPERS: ENEMY EXISTENCE ___________________________________________
-        private bool EnemyExistsAt(int x, int y)
-        {
-            foreach (var e in Enemies)
-            {
-                if (e.X == x && e.Y == y)
-                    return true;
-            }
-            return false;
-        }
-
     } // END CLASS LevelData _____________________________________________________________ END LevelData
-
-
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS RENDERER ▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 
     // ============================================================
     // Renderer.cs – Console-art engine + Combat Log HUD
     // Summary: Ritar kartan (walls + actors) och visar combat-loggen
-    //          från Game.GetLog(). Vision = radie 5, inga "." golv.
+    //          från Game.GetLog(). Vision = radie 5
     // ============================================================
 
     public static class Renderer
@@ -406,10 +436,10 @@ namespace DragonsDestructiveDeathDungeon
         //_____________ MAIN DRAW __________________________________________________________
         /// <summary>
         /// Ritar hela spelbrädet.
-        /// - Vision: euklidisk radie 5 (dist^2 ≤ 25).
+        /// - Vision med Pytagoras sats
         /// - Väggar ritas om de är synliga NU eller har setts FÖRUT (SeenWalls).
-        /// - Fiender syns endast när synliga.
-        /// - Golv ritas aldrig som "." (bara blank).
+        /// - Fiender syns endast när de äri vision range.
+        /// - Golv ritas inte
         /// </summary>
         public static void Draw(LevelData level, Player player)
         {
@@ -420,6 +450,35 @@ namespace DragonsDestructiveDeathDungeon
             bool[,] visible = new bool[w, h];
             int radius = 5;
             int r2 = radius * radius;
+
+            /*
+            for (int y = player.Y - radius; y <= player.Y + radius; y++)
+            {
+                for (int x = player.X - radius; x <= player.X + radius; x++)
+                {
+                    visible[x, y] = true;
+                }                                                                           DELETE THIS!
+            }*/
+            //for (int y = player.Y - radius; y <= player.Y + radius; y++)
+            //{
+            //    for (int x = player.X - radius; x <= player.X + radius; x++)             AND HTIS !
+            //    {
+            //        try
+            //        {
+            //            int dx = x - player.X;
+            //            int dy = y - player.Y;
+            //            if (dx * dx + dy * dy <= r2)
+            //                visible[x, y] = true;
+            //        }
+            //        catch (IndexOutOfRangeException)
+            //        {
+            //            // outside map, skip
+            //            continue;
+            //        }
+            //    }
+            //}
+
+            //___________________________________________________________ VISION RANGE
 
             int xmin = Math.Max(0, player.X - radius);
             int xmax = Math.Min(w - 1, player.X + radius);
@@ -442,10 +501,10 @@ namespace DragonsDestructiveDeathDungeon
             {
                 for (int x = 0; x < w; x++)
                 {
-                    // Player ritas alltid överst om exakt denna ruta
+                    // Player ritas alltid överst
                     if (player.X == x && player.Y == y)
                     {
-                        Console.Write(player.Glyph);
+                        Console.Write(player.Symbol);
                         continue;
                     }
 
@@ -469,12 +528,12 @@ namespace DragonsDestructiveDeathDungeon
                     var enemy = level.GetEnemyAt(x, y);
                     if (enemy != null)
                     {
-                        // Fiender syns endast när i range
-                        Console.Write(visible[x, y] ? enemy.Glyph : ' ');
+                        // Fiender syns endast när inom vision range
+                        Console.Write(visible[x, y] ? enemy.Symbol : ' ');
                         continue;
                     }
 
-                    // Tomt
+                    // Tom golvyta blank, 
                     Console.Write(' ');
                 }
                 Console.WriteLine();
@@ -501,9 +560,8 @@ namespace DragonsDestructiveDeathDungeon
         }
     }
 
-    // █████████████████████████████ GAME ENTITIES ██████████████████████████████████████████████████████████ 02 █████████████
 
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS LEVELELEMENT ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+    // █████████████████████████████ GAME ENTITIES ██████████████████████████████████████████████████████████ 02 █████████████
 
     // ============================================================
     // LevelElement.cs – Abstract base class
@@ -513,13 +571,13 @@ namespace DragonsDestructiveDeathDungeon
     {
         public int X { get; set; }
         public int Y { get; set; }
-        public char Glyph { get; protected set; }
+        public char Symbol { get; protected set; }
 
-        protected LevelElement(int x, int y, char glyph)
+        protected LevelElement(int x, int y, char _symbol)
         {
             X = x;
             Y = y;
-            Glyph = glyph;
+            Symbol = _symbol;
         }
 
         public abstract void Draw();
@@ -531,13 +589,11 @@ namespace DragonsDestructiveDeathDungeon
         }
     }
 
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS WALL  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-
     // ============================================================
-    // Wall.cs 
-    // Summary: Vägg. Ärver LevelElement och blockerar allt.
+    // Wall.cs – 
+    // Summary: Väggklass. Ärver LevelElement
     // ============================================================
-    public sealed class Wall : LevelElement
+    public class Wall : LevelElement
     {
         public Wall(int x, int y)
             : base(x, y, '#')
@@ -548,8 +604,6 @@ namespace DragonsDestructiveDeathDungeon
             // Renderer tar hand om utskriften sen.
         }
     }
-
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS ENEMY ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 
 
     // ============================================================
@@ -562,27 +616,22 @@ namespace DragonsDestructiveDeathDungeon
     {
         // ________________________ SHARED DIRECTION DATA _________________________________
         /// <summary>
-        /// Kardinalriktningar (dx,dy) som alla fiender kan använda.
+        /// (dx,dy) som alla fiender kan använda.
         /// </summary>
-        protected static readonly (int dx, int dy)[] Directions = new (int, int)[]
-        {
-            (0, -1), // upp
-            (0,  1), // ner
-            (-1, 0), // vänster
-            (1,  0), // höger
-        };
+        /// 
+        private static (int, int) upDir = (0,-1);
+        private static (int, int) downDir =(0,1);
+        private static (int, int) leftDir =(-1,0);
+        private static (int, int) rightDir = (1,0);
 
-        /// <summary>
-        /// Delad RNG för fiende-beteenden (separat från Dice.rng).
-        /// </summary>
-        protected static readonly Random EnemyRng = new Random();
+        protected static readonly (int dx, int dy)[] Directions = new (int, int)[]{
+            upDir,downDir,leftDir,rightDir };
 
-        /// <summary>
-        /// Returnerar EN slumpad riktning från <see cref="Directions"/>.
-        /// </summary>
+        protected static readonly Random randomDir = new Random();
+
         protected static (int dx, int dy) GetRandomDirection()
         {
-            return Directions[EnemyRng.Next(Directions.Length)];
+            return Directions[randomDir.Next(4)];
         }
 
         // ________________________ STATS / PROPERTIES ____________________________________
@@ -590,27 +639,26 @@ namespace DragonsDestructiveDeathDungeon
         public int HP { get; protected set; }
         public Dice AttackDice { get; protected set; } = null!;
         public Dice DefenceDice { get; protected set; } = null!;
-        public bool IsAlive => HP > 0;
+        public bool IsAlive
+        {
+            get { return HP > 0; }
+        }
 
-        // ________________________ CTOR _________________________________________________
         protected Enemy(int x, int y, char glyph)
             : base(x, y, glyph)
         { }
 
-        // ________________________ COMBAT HELPERS _______________________________________
-        /// <summary> Slår attacktärningarna. </summary>
+        // ________________________ COMBAT  _______________________________________
         public int RollAttack()
         {
             return AttackDice.Throw();
         }
 
-        /// <summary> Slår försvarstärningarna. </summary>
         public int RollDefence()
         {
             return DefenceDice.Throw();
         }
 
-        /// <summary> Tar skada (clamp till 0). Returnerar true om fienden dog. </summary>
         public bool TakeDamage(int damage)
         {
             if (damage <= 0) return false;
@@ -623,15 +671,12 @@ namespace DragonsDestructiveDeathDungeon
         public abstract override void Draw();
     }
 
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS RAT ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-
     // ============================================================
     // Rat.cs – The rodent of destruction and doom  (Combat log added)
-    // Summary: Enkel AI – går slumpmässigt, attackerar spelaren om bredvid.
-    //          Loggar tärningsslag (attack/defence) och skador för båda sidor.
+    // Summary: Går random directions, attackerar spelaren om nära.
     // ============================================================
 
-    public sealed class Rat : Enemy
+    public class Rat : Enemy
     {
         private static readonly System.Random rng = new System.Random();
 
@@ -647,8 +692,8 @@ namespace DragonsDestructiveDeathDungeon
 
         // ________________________ UPDATE / AI ___________________________________________
         /// <summary>
-        ///  1) Om spelaren står i angränsande ruta så attackera (logga slag och skador).
-        ///  2) Annars gå 1 steg i slumpmässig riktning
+        ///  1) Om spelaren står i angränsande ruta attackera (logga slag och skador).
+        ///  2) Annars försök gå 1 steg i slumpmässig riktning (upp till 4 försök).
         /// </summary>
         public override void Update(LevelData level, Player player)
         {
@@ -660,31 +705,32 @@ namespace DragonsDestructiveDeathDungeon
 
                 if (tx == player.X && ty == player.Y)
                 {
-                    // 🐀 Rat attackerar spelaren
+                    //  attackerar spelaren
                     int a1 = RollAttack();
                     int d1 = player.DefenceDice.Throw();
-                    int dmgToPlayer = System.Math.Max(0, a1 - d1);
+                    int dmgToPlayer = a1 - d1;
+                        if (dmgToPlayer < 0) dmgToPlayer = 0;
 
-                    Game.Log($"Rat attacks: ATT {a1} vs your DEF {d1} - {dmgToPlayer} dmg");
+                    Game.Log($"Rat attack: Attack {a1}, heroes defence, {d1} = {dmgToPlayer} dmg");
                     player.TakeDamage(dmgToPlayer);
 
                     if (!player.IsAlive)
                     {
-                        Game.EndFromEnemy(level, player, "You were slain by a rat! 🐀 \a REEEEEEEEEEE!");
+                        Game.EndFromEnemy(level, player, "You were slain by a rat! 🐀 YOU DIED! DarkSouls theme starts playing");
                         return;
                     }
 
-                    // 🔁 Spelaren gör en enkel counterattack
+                    // Players turn
                     int a2 = player.AttackDice.Throw();
                     int d2 = RollDefence();
                     int dmgToRat = System.Math.Max(0, a2 - d2);
 
-                    Game.Log($"You counter the rat: ATT {a2} vs DEF {d2} - {dmgToRat} dmg");
+                    Game.Log($"You counter the rat: ATT {a2} vs DEF {d2} → {dmgToRat} dmg");
                     bool ratDied = TakeDamage(dmgToRat);
 
                     if (ratDied)
                     {
-                        Game.Log("The rat is slain!");
+                        Game.Log("The rat is rekt! rr xaxaxaxa ))))) ");
                         level.RemoveEnemy(this);
                     }
 
@@ -692,27 +738,27 @@ namespace DragonsDestructiveDeathDungeon
                 }
             }
 
-            // --- 2) Om inte angränsande: slumpmässig rörelse ---
-            for (int tries = 0; tries < 4; tries++)
+            // try move
+            for (int i = 0; i < 4; i++)
             {
                 var dir = GetRandomDirection();
                 int tx = X + dir.dx;
                 int ty = Y + dir.dy;
 
                 // Undvik väggar/levande fiender/out-of-bounds
-                if (!level.IsBlockedByWallOrEnemy(tx, ty))
+                if (!level.isBlocked(tx, ty))
                 {
                     X = tx;
                     Y = ty;
                     return;
                 }
             }
+
+            // Cant move, quit loop
         }
 
         // ________________________ DRAW _________________________________________________
-        /// <summary>
-        /// Renderer hanterar utskrift; denna gör inget.
-        /// </summary>
+
         public override void Draw()
         {
             // handled by Renderer
@@ -720,16 +766,15 @@ namespace DragonsDestructiveDeathDungeon
 
     } // END CLASS Rat __________________________________________________________________ END Rat
 
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS SNEK ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 
     // ============================================================
     // Snek.cs – (Combat log added: Flee AI + enemy-initiated combat)
-    // Summary: Om ett steg skulle gå in i spelaren: attackera (counter 1x) och stå kvar.
+    // Summary: Om ett steg skulle gå in i spelaren → attackera (counter 1x) och stå kvar.
     //          Annars: om spelaren är nära (dist ≤ 2) → ta passabelt steg som MAXIMERAR
     //          avståndet. Om långt bort (dist > 2) → stå still. Loggar alla tärningsslag.
     // ============================================================
 
-    public sealed class Snek : Enemy
+    public class Snek : Enemy
     {
         // ________________________ CONSTRUCTOR ___________________________________________
         public Snek(int x, int y)
@@ -762,18 +807,18 @@ namespace DragonsDestructiveDeathDungeon
                     // 🐍 Snek attackerar först
                     int a1 = RollAttack();
                     int d1 = player.DefenceDice.Throw();
-                    int dmgToPlayer = System.Math.Max(0, a1 - d1);
+                    int dmgToPlayer = a1 - d1;
+                    if (dmgToPlayer < 0) dmgToPlayer = 0;
 
-                    Game.Log($"Snek strikes first: ATT {a1} vs your DEF {d1} → {dmgToPlayer} dmg");
+                    Game.Log($"Snek attack: Attack {a1}, heroes defence {d1} = {dmgToPlayer} dmg");
                     player.TakeDamage(dmgToPlayer);
 
                     if (!player.IsAlive)
                     {
-                        Game.EndFromEnemy(level, player, "You were bitten by a snek... and died! 🐍");
+                        Game.EndFromEnemy(level, player, "snek killed you ! 🐍 YOU DIED! DarkSouls theme starts playing");
                         return;
                     }
-
-                    // 🔁 Spelaren får EXAKT en counterattack
+                    //player
                     int a2 = player.AttackDice.Throw();
                     int d2 = RollDefence();
                     int dmgToSnek = System.Math.Max(0, a2 - d2);
@@ -782,58 +827,100 @@ namespace DragonsDestructiveDeathDungeon
                     bool snekDied = TakeDamage(dmgToSnek);
                     if (snekDied)
                     {
-                        Game.Log("The snek collapses!");
+                        Game.Log("The snek ripperoni! GG WP NO RE! "); // https://www.youtube.com/watch?v=MS8OawQegYE
                         level.RemoveEnemy(this);
                     }
 
-                    // Stå kvar; gå inte in i spelarrutan
+                    // Stå kvar´!
                     return;
                 }
             }
 
-            //___________ 2) Flee-beteende: stå still om spelaren är längre bort än 2 rutor _
-            int dx0 = X - player.X;
-            int dy0 = Y - player.Y;
-            int dist2 = dx0 * dx0 + dy0 * dy0;
-            if (dist2 > 4)
+            //_Fly eller illa fäkta?
+            if (!IsPlayerNear(player, 2))
             {
                 return; // lugn, spelaren är inte nära
             }
 
-            //___________ 3) Backa bort: välj passabel riktning som maximerar dist^2 _______
-            int bestTx = X;
-            int bestTy = Y;
-            int bestDist2 = dist2;
-            bool foundBetter = false;
-
-            for (int i = 0; i < Directions.Length; i++)
+            else
             {
-                int tx = X + Directions[i].dx;
-                int ty = Y + Directions[i].dy;
+                EscapeSnek(level, player);
 
-                if (level.IsBlockedByWallOrEnemy(tx, ty))
-                    continue; // kan inte gå hit
+            }
 
-                int ddx = tx - player.X;
-                int ddy = ty - player.Y;
-                int cand = ddx * ddx + ddy * ddy;
 
-                if (cand > bestDist2)
+        }// end update
+
+        private void EscapeSnek(LevelData level, Player player)
+        {
+            int bestX = X;
+            int bestY = Y;
+            int bestDist = 0;
+
+            // Test up
+            int upX = X;
+            int upY = Y - 1;
+            if (!level.isBlocked(upX, upY))
+            {
+                int dist = Math.Abs(upX - player.X) + Math.Abs(upY - player.Y);
+                if (dist > bestDist)
                 {
-                    bestDist2 = cand;
-                    bestTx = tx;
-                    bestTy = ty;
-                    foundBetter = true;
+                    bestDist = dist;
+                    bestX = upX;
+                    bestY = upY;
                 }
             }
 
-            if (foundBetter)
+            //  Test down
+            int downX = X;
+            int downY = Y + 1;
+            if (!level.isBlocked(downX, downY))
             {
-                X = bestTx;
-                Y = bestTy;
+                int dist = Math.Abs(downX - player.X) + Math.Abs(downY - player.Y);
+                if (dist > bestDist)
+                {
+                    bestDist = dist;
+                    bestX = downX;
+                    bestY = downY;
+                }
             }
-            // annars: alla alternativ sämre/blockerade → stå still
+
+            // Test left
+            int leftX = X - 1;
+            int leftY = Y;
+            if (!level.isBlocked(leftX, leftY))
+            {
+                int dist = Math.Abs(leftX - player.X) + Math.Abs(leftY - player.Y);
+                if (dist > bestDist)
+                {
+                    bestDist = dist;
+                    bestX = leftX;
+                    bestY = leftY;
+                }
+            }
+
+            // Test right
+            int rightX = X + 1;
+            int rightY = Y;
+            if (!level.isBlocked(rightX, rightY))
+            {
+                int dist = Math.Abs(rightX - player.X) + Math.Abs(rightY - player.Y);
+                if (dist > bestDist)
+                {
+                    bestDist = dist;
+                    bestX = rightX;
+                    bestY = rightY;
+                }
+            }
+
+            // Move if found good place
+            if (bestX != X || bestY != Y)
+            {
+                X = bestX;
+                Y = bestY;
+            }
         }
+
 
         // ________________________ DRAW _________________________________________________
         /// <summary>
@@ -843,10 +930,14 @@ namespace DragonsDestructiveDeathDungeon
         {
             // handled by Renderer
         }
+        private bool IsPlayerNear(Player player, int range)
+        {
+            int dx = Math.Abs(X - player.X);
+            int dy = Math.Abs(Y - player.Y);
+            return dx <= range && dy <= range;
+        }
 
     } // END CLASS Snek __________________________________________________________________ END Snek
-
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS PLAYER ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 
 
     // ============================================================
@@ -855,7 +946,7 @@ namespace DragonsDestructiveDeathDungeon
     // Ingen collision, input eller rendering ännu – kommer i steg 7–8.
     // ============================================================
 
-    public sealed class Player : LevelElement
+    public class Player : LevelElement
     {
         // ________________________ FIELDS ________________________________________________
         public int HP { get; private set; } = 100;
@@ -864,9 +955,6 @@ namespace DragonsDestructiveDeathDungeon
         public bool IsAlive => HP > 0;
 
         // ________________________ CONSTRUCTORS _________________________________________
-        /// <summary>
-        /// Skapar spelaren utifrån LevelData.PlayerStart. Glyph = '@'.
-        /// </summary>
         public Player((int x, int y) start)
             : base(start.x, start.y, '@')
         {
@@ -874,9 +962,6 @@ namespace DragonsDestructiveDeathDungeon
             DefenceDice = new Dice(2, 6, 0);  // 2d6+0
         }
 
-        /// <summary>
-        /// Alternativ konstruktor – skapa manuellt på X/Y.
-        /// </summary>
         public Player(int x, int y)
             : base(x, y, '@')
         {
@@ -884,9 +969,6 @@ namespace DragonsDestructiveDeathDungeon
             DefenceDice = new Dice(2, 6, 0);
         }
 
-        /// <summary>
-        /// Legacy-signatur (behåll för kompatibilitet om andra klasser använder den).
-        /// </summary>
         public Player(int x, int y, char glyph)
             : base(x, y, glyph)
         {
@@ -894,12 +976,8 @@ namespace DragonsDestructiveDeathDungeon
             DefenceDice = new Dice(2, 6, 0);
         }
 
-        // ________________________ METHODS _______________________________________________
-        /// <summary>
-        /// Beräknar target-koordinater baserat på (dx, dy) utan att flytta spelaren.
-        /// Kollisionsregler hanteras centralt i LevelData/Game-loop (steg 7–8).
-        /// </summary>
-        public (int tx, int ty) GetTarget(int dx, int dy)
+  
+        public (int tx, int ty) moveDir(int dx, int dy)
         {
             int tx = X + dx;
             int ty = Y + dy;
@@ -934,17 +1012,15 @@ namespace DragonsDestructiveDeathDungeon
     } // END CLASS Player ____________________________________________________________ END Player
 
 
+
     // █████████████████████████████ UTILITY CLASSES ███████████████████████████████████████████████████████ 03 █████████████
 
     // ============================================================
-    // Dice.cs – RNGesus take the wheel
-    // Summary: Representerar x(Dice)+ y tärningskonfigurationer, 
-    // t.ex. "2d6+2". Används för attack/defence rolls.
+    // Dice.cs – 
+    // Summary: x-antal * (Dice)+ y modifier, 
+    // "2d6+2". Används för attack/defence rolls.
     // ============================================================
-
-    // ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ CLASS DICE ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-
-    public sealed class Dice
+    public class Dice
     {
         private static readonly Random rng = new Random();
 
