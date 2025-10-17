@@ -11,12 +11,10 @@
 //  NOTE: Bara MVP nu! Se till att bli godkänd innan real-time projektet kan fortsätta.
 // ██████████████████████████████████████████████████████████████████████████████████████████████████████████ 00 ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
 
-
-
 using System;                           // basic C# core 
 using System.Collections.Generic;       // List  – LevelData, Game, Enemies, Log system
 using System.IO;                        // File extraction – LevelData.Load()
-using System.Linq;                      //  LevelData, Game loops
+using System.Linq;                      // LevelData, Game loops
 using System.Numerics;                  // Vector2/3 etc. Could use for Unity like distance calc.
 using System.Text;                      // Encoding (Console, Stringfunctionality – Game (Console.OutputEncoding)
 
@@ -88,8 +86,7 @@ namespace DragonsDestructiveDeathDungeon
                 ConsoleKeyInfo key = Console.ReadKey(true);
                 int dx = 0, dy = 0;
 
-                switch (key.Key)
-                {
+                switch (key.Key) {
                     case ConsoleKey.W:
                     case ConsoleKey.UpArrow: { dy = -1; break; }
                     case ConsoleKey.S:
@@ -98,20 +95,19 @@ namespace DragonsDestructiveDeathDungeon
                     case ConsoleKey.LeftArrow: { dx = -1; break; }
                     case ConsoleKey.D:
                     case ConsoleKey.RightArrow: { dx = 1; break; }
-                    case ConsoleKey.Escape:
-                        {
+                    case ConsoleKey.Escape: {
                             gameRunning = false;
                             continue; // lämna loopen till slut-sammanfattning
-                        }
+                    }
                 }
 
                 // ====================== PHASE 1: PLAYER ================================
                 var target = player.GetTarget(dx, dy);
 
-                var enemyAtTarget = level.GetEnemyAt(target.tx, target.ty);
-                if (enemyAtTarget != null && enemyAtTarget.IsAlive)
+                var enemyAtNewCell = level.GetEnemyAt(target.tx, target.ty);
+                if (enemyAtNewCell != null && enemyAtNewCell.IsAlive)
                 {
-                    ResolvePlayerAttack(level, player, enemyAtTarget, target.tx, target.ty);
+                    ResolvePlayerAttack(level, player, enemyAtNewCell, target.tx, target.ty);
                 }
                 else
                 {
@@ -177,6 +173,7 @@ namespace DragonsDestructiveDeathDungeon
             player.TakeDamage(dmgToPlayer);
         }
 
+        // needed to avoid fatal crashes with null references from dead enemies.
         private static List<Enemy> GetEnemyTempList(LevelData level)
         {
             var _temp = new List<Enemy>();
